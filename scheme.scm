@@ -27,7 +27,19 @@
      [(not)          #t]
      [(fixnum?)      #t]
      [(boolean?)     #t]
+     [(add)          #t]
+     [(sub)          #t]
+     [(mul)          #t]
+     [(div)          #t]
      [ else          #f])))
+
+
+(define (let? x) (and (pair? x) (eqv? (car x) 'let)))
+
+(define variable? symbol?)
+
+(define (bindings x) (car (cdr x)))
+(define (body x) (cdr (cdr x)))
 
 (define (primcall-emitter x)
   (case x
@@ -40,6 +52,10 @@
     [(fixnum?)      fixnum?-primcall-emitter]
     [(boolean?)     boolean?-primcall-emitter]
     [(not)          not-primcall-emitter]
+    [(add)          add-primcall-emitter]
+    [(sub)          sub-primcall-emitter]
+    [(mul)          mul-primcall-emitter]
+    [(div)          div-primcall-emitter]
     ))
 
 ;;  not,  boolean?,
@@ -54,41 +70,41 @@
   (format #f "var~a" (- glb-label 1))
 )
 
-(define (add1-primcall-emitter arg)
+(define (add1-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label)))
-   (emit-expr arg)
+   (emit-expr arg env)
    (emit "%~a = load i32, i32* %tmp" label1)
    (emit "%~a = add i32 %~a, 4"      label2 label1)
    (emit "store i32 %~a, i32* %tmp"  label2)))
 
-(define (sub1-primcall-emitter arg)
+(define (sub1-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label)))
-   (emit-expr arg)
+   (emit-expr arg env)
    (emit "%~a = load i32, i32* %tmp" label1)
    (emit "%~a = sub i32 %~a, 4"      label2 label1)
    (emit "store i32 %~a, i32* %tmp"  label2)))
 
-(define (char->fixnum-primcall-emitter arg)
+(define (char->fixnum-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label)) (label3 (get-label)))
-   (emit-expr arg)
+   (emit-expr arg env)
    (emit "%~a = load i32, i32* %tmp" label1)
    (emit "%~a = ashr i32 %~a, 4"     label2 label1)
    (emit "%~a = shl  i32 %~a, 2"     label3 label2)
    (emit "store i32 %~a, i32* %tmp"  label3)))
 
-(define (fixnum->char-primcall-emitter arg)
+(define (fixnum->char-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label)) (label3 (get-label)))
-   (emit-expr arg)
+   (emit-expr arg env)
    (emit "%~a = load i32, i32* %tmp" label1)
    (emit "%~a = shl i32 %~a, 2"      label2 label1)
    (emit "%~a = or  i32 %~a, 15"     label3 label2)
    (emit "store i32 %~a, i32* %tmp"  label3)))
 
-(define (fxzero?-primcall-emitter arg)
+(define (fxzero?-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label))
 	(label3 (get-label)) (label4 (get-label))
 	(label5 (get-label)))
-   (emit-expr arg)
+   (emit-expr arg env)
    (emit "%~a = load i32, i32* %tmp" label1)
    (emit "%~a = icmp eq i32 %~a, 0"  label2 label1)
    (emit "%~a = zext i1 %~a to i32"  label3 label2)
@@ -97,11 +113,11 @@
    (emit "store i32 %~a, i32* %tmp"  label5)))
 
 
-(define (null?-primcall-emitter arg)
+(define (null?-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label))
 	(label3 (get-label)) (label4 (get-label))
 	(label5 (get-label)))
-   (emit-expr arg)
+   (emit-expr arg env)
    (emit "%~a = load i32, i32* %tmp" label1)
    (emit "%~a = icmp eq i32 %~a, 47" label2 label1)
    (emit "%~a = zext i1 %~a to i32"  label3 label2)
@@ -109,11 +125,11 @@
    (emit "%~a = or i32 %~a, 31"      label5 label4)
    (emit "store i32 %~a, i32* %tmp"  label5)))
 
-(define (fixnum?-primcall-emitter arg)
+(define (fixnum?-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label))
 	(label3 (get-label)) (label4 (get-label))
 	(label5 (get-label)) (label6 (get-label)))
-   (emit-expr arg)
+   (emit-expr arg env)
    (emit "%~a = load i32, i32* %tmp" label1)
    (emit "%~a = and i32 %~a, 3"      label2 label1)
    (emit "%~a = icmp eq i32 %~a, 0"  label3 label2)
@@ -122,11 +138,11 @@
    (emit "%~a = or i32 %~a, 31"      label6 label5)
    (emit "store i32 %~a, i32* %tmp"  label6)))
 
-(define (boolean?-primcall-emitter arg)
+(define (boolean?-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label))
 	(label3 (get-label)) (label4 (get-label))
 	(label5 (get-label)) (label6 (get-label)))
-   (emit-expr arg)
+   (emit-expr arg env)
    (emit "%~a = load i32, i32* %tmp" label1)
    (emit "%~a = and i32 %~a, 127"    label2 label1)
    (emit "%~a = icmp eq i32 %~a, 31" label3 label2)
@@ -136,20 +152,71 @@
    (emit "store i32 %~a, i32* %tmp"  label6)))
 
 
-(define (not-primcall-emitter arg)
+(define (not-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label)))
-   (emit-expr arg)
+   (emit-expr arg env)
    (emit "%~a = load i32, i32* %tmp" label1)
    (emit "%~a = xor i32 %~a, 128"    label2 label1)
    (emit "store i32 %~a, i32* %tmp"  label2)))
 
+(define (add-primcall-emitter env arg1 arg2)
+  (let ((label1 (get-label)) (label2 (get-label))
+	(label3 (get-label)))
+   (emit-expr arg2 env)
+   (emit "%~a = load i32, i32* %tmp" label1)
+   (emit-expr arg1 env)
+   (emit "%~a = load i32, i32* %tmp" label2)
+   (emit "%~a = add i32 %~a, %~a"    label3 label2 label1)
+   (emit "store i32 %~a, i32* %tmp"  label3)))
+
+(define (sub-primcall-emitter env arg1 arg2)
+  (let ((label1 (get-label)) (label2 (get-label))
+	(label3 (get-label)))
+   (emit-expr arg2 env)
+   (emit "%~a = load i32, i32* %tmp" label1)
+   (emit-expr arg1 env)
+   (emit "%~a = load i32, i32* %tmp" label2)
+   (emit "%~a = sub i32 %~a, %~a"    label3 label2 label1)
+   (emit "store i32 %~a, i32* %tmp"  label3)))
+
+(define (mul-primcall-emitter env arg1 arg2)
+  (let ((label1 (get-label)) (label2 (get-label))
+	(label3 (get-label)))
+   (emit-expr arg2 env)
+   (emit "%~a = load i32, i32* %tmp" label1)
+   (emit-expr arg1 env)
+   (emit "%~a = load i32, i32* %tmp" label2)
+   (emit "%~a = mul i32 %~a, %~a"    label3 label2 label1)
+   (emit "store i32 %~a, i32* %tmp"  label3)))
+
+(define (div-primcall-emitter env arg1 arg2)
+  (let ((label1 (get-label)) (label2 (get-label))
+	(label3 (get-label)))
+   (emit-expr arg2 env)
+   (emit "%~a = load i32, i32* %tmp" label1)
+   (emit-expr arg1 env)
+   (emit "%~a = load i32, i32* %tmp" label2)
+   (emit "%~a = sdiv i32 %~a, %~a"    label3 label2 label1)
+   (emit "store i32 %~a, i32* %tmp"  label3)))
+
+(define (emit-let bindings body env)
+  (let f ((b* bindings) (new-env env))
+    (cond ((null? b*) (emit-expr body new-env))
+	  ( else	 (let ((b (car b*)) (label (get-label)))
+			   (emit-expr (cadr b) env)
+			   (emit "%~a = load i32, i32* %tmp" label)
+			   (f (cdr b*)
+			      (cons (list (car b) label) new-env))
+			   )
+			 ))))
+
 (define (primcall-oper x) (car (cdr x)))
 
 
-(define (emit-primcall expr)
+(define (emit-primcall expr env)
   (let ((p (car expr))
 	(a (cdr expr)))
-       (apply (primcall-emitter p) a)))
+       (apply (primcall-emitter p) (cons env a))))
 
 (define (immediate-rep x)
     (cond
@@ -159,11 +226,15 @@
      ((null?    x)  47)
      ))
 
+(define (lookup x env) (cadr (assv x env)))
+
 ;; Emit Expression into a register
-(define (emit-expr x)
+(define (emit-expr x env)
   (cond
    ((immediate? x) (emit "store i32 ~a, i32* %tmp" (immediate-rep x) ))
-   (( primcall? x) (emit-primcall x))
+   (( primcall? x) (emit-primcall x env))
+   (( variable? x) (emit "store i32 ~a, i32* %tmp" (lookup x env)) (display env))
+   ((      let? x) (emit-let (bindings x) (body x) env))
    )
   )
 
@@ -171,7 +242,7 @@
 
 (define (compile-program expr)
   (emit-header)
-  (emit-expr expr)
+  (emit-expr expr '())
   (emit-footer))
 
 (define (emit-header)
