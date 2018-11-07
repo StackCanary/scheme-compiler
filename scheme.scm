@@ -233,7 +233,7 @@
   (cond
    ((immediate? x) (emit "store i32 ~a, i32* %tmp" (immediate-rep x) ))
    (( primcall? x) (emit-primcall x env))
-   (( variable? x) (emit "store i32 ~a, i32* %tmp" (lookup x env)) (display env))
+   (( variable? x) (emit "store i32 %~a, i32* %tmp" (lookup x env))) 
    ((      let? x) (emit-let (bindings x) (body x) env))
    )
   )
