@@ -4,7 +4,7 @@
 
 (define (emit . args) (display (apply format #f args)) (newline))
 
-; Binary Op
+; Binary Op -- TODO use logior, logiand
 
 (define shift-r bitwise-arithmetic-shift-right)
 (define shift-l bitwise-arithmetic-shift-left )
@@ -31,6 +31,7 @@
      [(sub)          #t]
      [(mul)          #t]
      [(div)          #t]
+     [(if)           #t]
      [ else          #f])))
 
 
@@ -56,6 +57,7 @@
     [(sub)          sub-primcall-emitter]
     [(mul)          mul-primcall-emitter]
     [(div)          div-primcall-emitter]
+    [(if)           if-primcall-emitter]
     ))
 
 ;;  not,  boolean?,
@@ -68,7 +70,12 @@
 (define (get-label)
   (set! glb-label (+ 1 glb-label))
   (format #f "var~a" (- glb-label 1))
-)
+  )
+
+(define (lab-label)
+  (set! glb-label (+ 1 glb-label))
+  (format #f "lab~a" (- glb-label 1))
+  )
 
 (define (add1-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label)))
@@ -200,6 +207,30 @@
    (emit "%~a = sdiv i32 %~a, %~a"    label3 label2 label1)
    (emit "store i32 %~a, i32* %tmp"  label3)))
 
+(define (emit-label label)
+  (emit "~a:" label))
+
+(define (if-primcall-emitter env test conseq altern)
+  (let ((L0 (lab-label))
+	(L1 (lab-label))
+	(L2 (lab-label))
+	(L3 (lab-label))
+	(label1 (get-label))
+	(label2 (get-label)))
+    (emit-expr test   env) ;
+    (emit "%~a = load i32, i32* %tmp"  label1)
+    (emit "%~a = icmp eq i32 %~a, ~a"  label2 label1 (immediate-rep #t))
+    (emit "br i1 %~a, label %~a, label %~a " label2 L1 L2)
+    (emit-label L1)
+    (emit-expr conseq env)
+    (emit "br label %~a " L3)
+    (emit-label L2)
+    (emit-expr altern env)
+    (emit "br label %~a " L3)
+    (emit-label L3)
+    )
+  )
+ 
 (define (emit-let bindings body env)
   (let f ((b* bindings) (new-env env))
     (cond ((null? b*) (emit-expr body new-env))
@@ -210,8 +241,6 @@
 			      (cons (list (car b) label) new-env))
 			   )
 			 ))))
-
-(define (primcall-oper x) (car (cdr x)))
 
 
 (define (emit-primcall expr env)
@@ -249,6 +278,7 @@
 (define (emit-header)
   (emit "define i32 @scheme_entry()")
   (emit "{")
+  (emit "entry: ")
   (emit "%tmp = alloca i32"))
 
 (define (emit-footer)
