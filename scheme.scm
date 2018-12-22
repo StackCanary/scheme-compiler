@@ -41,7 +41,7 @@
 (define variable? symbol?)
 
 (define (bindings x) (car (cdr x)))
-(define (body x) (cdr (cdr x)))
+(define (body x) (caddr x))
 
 (define (primcall-emitter x)
   (case x
