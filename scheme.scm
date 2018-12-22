@@ -35,7 +35,8 @@
      [ else          #f])))
 
 
-(define (let? x) (and (pair? x) (eqv? (car x) 'let)))
+(define  (let? x) (and (pair? x) (eqv? (car x) 'let))) 
+(define (let*? x) (and (pair? x) (eqv? (car x) 'let*)))
 
 (define variable? symbol?)
 
@@ -243,6 +244,14 @@
 			 ))))
 
 
+(define (rewrite-let* bindings body env)
+  (cond
+   ((null? bindings) body)
+   ( else (let ((b (car bindings)) (b* (cdr bindings)))
+	    (cons 'let (cons (cons b '()) (cons (rewrite-let* b* body env)'())))
+	    ))
+   ))
+
 (define (emit-primcall expr env)
   (let ((p (car expr))
 	(a (cdr expr)))
@@ -264,7 +273,8 @@
    ((immediate? x) (emit "store i32 ~a, i32* %tmp" (immediate-rep x) ))
    (( primcall? x) (emit-primcall x env))
    (( variable? x) (emit "store i32 %~a, i32* %tmp" (lookup x env))) 
-   ((      let? x) (emit-let (bindings x) (body x) env))
+   ((      let? x) (emit-let  (bindings x) (body x) env))
+   ((     let*? x) (emit-expr (rewrite-let* (bindings x) (body x) env) env))
    )
   )
 
