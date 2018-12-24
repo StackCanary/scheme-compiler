@@ -213,8 +213,7 @@
   (emit "~a:" label))
 
 (define (if-primcall-emitter env test conseq altern)
-  (let ((L0 (lab-label))
-	(L1 (lab-label))
+  (let ((L1 (lab-label))
 	(L2 (lab-label))
 	(L3 (lab-label))
 	(label1 (get-label))
