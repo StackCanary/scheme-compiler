@@ -35,13 +35,14 @@
      [ else          #f])))
 
 
-(define  (let? x) (and (pair? x) (eqv? (car x) 'let))) 
+(define (let? x) (and (pair? x) (eqv? (car x) 'let))) 
 (define (let*? x) (and (pair? x) (eqv? (car x) 'let*)))
+(define (begin? x) (and (pair? x) (eqv? (car x) 'begin))) 
 
 (define variable? symbol?)
 
 (define (bindings x) (car (cdr x)))
-(define (body x) (caddr x))
+(define (body x) (cddr x))
 
 (define (primcall-emitter x)
   (case x
@@ -231,10 +232,17 @@
     (emit-label L3)
     )
   )
+
+(define (emit-begin x env)
+  (cond
+   ((null? x) '())
+   ( else (begin (emit-expr (car x) env) (emit-begin (cdr x) env)) )
+   ))
+
  
 (define (emit-let bindings body env)
   (let f ((b* bindings) (new-env env))
-    (cond ((null? b*) (emit-expr body new-env))
+    (cond ((null? b*) (emit-begin body new-env))
 	  ( else	 (let ((b (car b*)) (label (get-label)))
 			   (emit-expr (cadr b) env)
 			   (emit "%~a = load i32, i32* %tmp" label)
@@ -248,9 +256,14 @@
   (cond
    ((null? bindings) body)
    ( else (let ((b (car bindings)) (b* (cdr bindings)))
-	    (cons 'let (cons (cons b '()) (cons (rewrite-let* b* body env)'())))
-	    ))
+	    (if (null? b*)
+		(cons 'let (cons (cons b '()) body))
+		(cons 'let (cons (cons b '()) (cons (rewrite-let* b* body env) '())))
+		)))
    ))
+
+
+;; TODO Implement Lambdas
 
 (define (emit-primcall expr env)
   (let ((p (car expr))
@@ -275,6 +288,7 @@
    (( variable? x) (emit "store i32 %~a, i32* %tmp" (lookup x env))) 
    ((      let? x) (emit-let  (bindings x) (body x) env))
    ((     let*? x) (emit-expr (rewrite-let* (bindings x) (body x) env) env))
+   ((    begin? x) (emit-begin (cdr x) env))
    )
   )
 
