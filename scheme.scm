@@ -37,7 +37,11 @@
 
 (define (let? x) (and (pair? x) (eqv? (car x) 'let))) 
 (define (let*? x) (and (pair? x) (eqv? (car x) 'let*)))
-(define (begin? x) (and (pair? x) (eqv? (car x) 'begin))) 
+(define (begin? x) (and (pair? x) (eqv? (car x) 'begin)))
+(define (code? x) (and (pair? x) (eqv? (car x) 'code)))
+(define (labels? x) (and (pair? x) (eqv? (car x) 'labels)))
+(define (labelcall? x) (and (pair? x) (eqv? (car x) 'labecall)))
+
 
 (define variable? symbol?)
 
@@ -77,6 +81,11 @@
 (define (lab-label)
   (set! glb-label (+ 1 glb-label))
   (format #f "lab~a" (- glb-label 1))
+  )
+
+(define (fun-label)
+  (set! glb-label (+ 1 glb-label))
+  (format #f "fun~a" (- glb-label 1))
   )
 
 (define (add1-primcall-emitter env arg)
@@ -264,6 +273,74 @@
 
 ;; TODO Implement Lambdas
 
+
+; Emit label expression (label ([lvar code] ..) expr)
+(define (emit-lbls bindings expr)
+  
+					; Create a new environment mapping function names (lvars) to unique labels
+  (define (make-env b)
+    (cond
+     ((null? b) '())
+     ( else      (cons (list (caar b) (fun-label)) (make-env (cdr b)) ))
+     ))
+
+  (define (code-var c)
+    (cadr c))
+
+  (define (code-exp c)
+    (caddr c))
+  
+  (let ((env (make-env bindings)))
+					; Emit functions for each binding [lvar code]
+    (for-each 					
+     (lambda (binding)
+       (let* ((lvar (car binding)) (code (cadr binding)) (var (code-var code)) (expr (code-exp code)) (labl (lookup lvar env)))
+	 (emit-code labl var expr env)
+	 )) bindings)
+    
+					; Emit Scheme Entry for expr
+    (emit-code "scheme_entry" '() expr env) 
+    )
+  )
+
+(define (emit-code labl var expr env)   ; labl - func name, var - list of func args, expr - body
+  (emit-header labl (length var))	; Emit Function Header
+					; Extend env to map symbols to variable locations
+  (let f ((var var) (arg 0) (env env))
+    (cond
+     ((null? var) (emit-expr expr env)) ; Emit Function Body with new-env
+     (else (f (cdr var) (+ arg 1) (cons (list (car var) (format #f "arg~a" arg)) env)))
+     ))
+  
+  (emit-footer))			; Emit Function Footer
+
+
+(define (comma-interpersed-list list)
+  (cond
+   ((eqv? (length list) 0) "0")
+   ((eqv? (length list) 1) (format #f "~a" (car list)))
+   ( else (string-append (format #f "~a, " (car list)) (comma-interpersed-list (cdr list))))
+   )
+  )
+
+(define (emit-labelcall fname exprs env)
+  (define (emit-args exprs arg-vars)
+    (cond 
+     ((null? exprs) (emit "call i32 @~a(~a)" fname (comma-interpersed-list (reverse arg-vars))))
+     ( else
+       (let ((label (get-label)))
+	 (emit-expr (car exprs) env)
+	 (emit "%~a = load i32, i32* %tmp" label)
+	 (emit-args (cdr exprs) (cons label arg-vars))
+	 )
+       )
+     )
+    )
+
+  (emit-args exprs '())
+  
+  )
+
 (define (emit-primcall expr env)
   (let ((p (car expr))
 	(a (cdr expr)))
@@ -288,18 +365,29 @@
    ((      let? x) (emit-let  (bindings x) (body x) env))
    ((     let*? x) (emit-expr (rewrite-let* (bindings x) (body x) env) env))
    ((    begin? x) (emit-begin (cdr x) env))
+   ((   labels? x) '()) ; (labels ([fname code] ...] expr)
+   ((     code? x) '()) ; (  code (var ...) expr)
+   ((labelcall? x) '()) ; (labelcall fname expr ...)
    )
   )
 
 ;; Compile program
 
 (define (compile-program expr)
-  (emit-header)
+  (emit-header "scheme_entry" 0)
   (emit-expr expr '())
   (emit-footer))
 
-(define (emit-header)
-  (emit "define i32 @scheme_entry()")
+
+(define (emit-argspc count_a count_b)
+  (cond
+   ((zero? count_a) "")
+   ((eqv? 1 count_a) (format #f "i32 arg~a" count_b)) 
+   ( else (string-append (format #f "i32 arg~a, " count_b) (emit-argspc (- count_a 1) (+ count_b 1))))
+   ))
+
+(define (emit-header fname count)
+  (emit "define i32 @~a(~a)" fname (emit-argspc count 0))
   (emit "{")
   (emit "entry: ")
   (emit "%tmp = alloca i32"))
