@@ -41,6 +41,7 @@
 (define (code? x) (and (pair? x) (eqv? (car x) 'code)))
 (define (labels? x) (and (pair? x) (eqv? (car x) 'labels)))
 (define (labelcall? x) (and (pair? x) (eqv? (car x) 'labecall)))
+(define (closure? x) (and (pair? x) (eqv? (car x) 'closure)))
 
 
 (define variable? symbol?)
@@ -275,7 +276,7 @@
 
 
 ; Emit label expression (label ([lvar code] ..) expr)
-(define (emit-lbls bindings expr)
+(define (emit-lbls expr)
   
 					; Create a new environment mapping function names (lvars) to unique labels
   (define (make-env b)
@@ -289,8 +290,12 @@
 
   (define (code-exp c)
     (caddr c))
+
+  (define (expr-bin e)
+    (cadr e)
+    )
   
-  (let ((env (make-env bindings)))
+  (let ((bindings (expr-bin expr)) (env (make-env bindings)))
 					; Emit functions for each binding [lvar code]
     (for-each 					
      (lambda (binding)
@@ -299,7 +304,8 @@
 	 )) bindings)
     
 					; Emit Scheme Entry for expr
-    (emit-code "scheme_entry" '() expr env) 
+    (emit-code "scheme_entry" '() expr env)
+    
     )
   )
 
@@ -317,16 +323,16 @@
 
 (define (comma-interpersed-list list)
   (cond
-   ((eqv? (length list) 0) "0")
+   ((eqv? (length list) 0) "")
    ((eqv? (length list) 1) (format #f "~a" (car list)))
    ( else (string-append (format #f "~a, " (car list)) (comma-interpersed-list (cdr list))))
    )
   )
 
-(define (emit-labelcall fname exprs env)
+(define (emit-labelcall lvar exprs env)
   (define (emit-args exprs arg-vars)
     (cond 
-     ((null? exprs) (emit "call i32 @~a(~a)" fname (comma-interpersed-list (reverse arg-vars))))
+     ((null? exprs) (emit "call i32 @~a(~a)" (lookup lvar env) (comma-interpersed-list (reverse arg-vars))))
      ( else
        (let ((label (get-label)))
 	 (emit-expr (car exprs) env)
@@ -367,17 +373,15 @@
    ((    begin? x) (emit-begin (cdr x) env))
    ((   labels? x) '()) ; (labels ([fname code] ...] expr)
    ((     code? x) '()) ; (  code (var ...) expr)
-   ((labelcall? x) '()) ; (labelcall fname expr ...)
+   ((labelcall? x) '()) ; (labelcall lvar expr ...)
+   ((  closure? x) '()) ; (closure lvar var ...)
    )
   )
 
 ;; Compile program
 
 (define (compile-program expr)
-  (emit-header "scheme_entry" 0)
-  (emit-expr expr '())
-  (emit-footer))
-
+  (if (labelcall? expr) (emit-lbls expr) (emit-code "scheme_entry" '() expr '())))
 
 (define (emit-argspc count_a count_b)
   (cond
