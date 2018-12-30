@@ -58,6 +58,11 @@
     [(fxzero?)      fxzero?-primcall-emitter]
     [(null?)        null?-primcall-emitter]
     [(fixnum?)      fixnum?-primcall-emitter]
+    [(pair?)        pair?-primcall-emitter]
+    [(closure?)     closure?-primcall-emitter]
+    [(symbol?)      symbol?-primcall-emitter]
+    [(vector?)      vector?-primcall-emitter]
+    [(string?)      string?-primcall-emitter]
     [(boolean?)     boolean?-primcall-emitter]
     [(not)          not-primcall-emitter]
     [(add)          add-primcall-emitter]
@@ -144,18 +149,36 @@
    (emit "%~a = or i32 %~a, 31"      label5 label4)
    (emit "store i32 %~a, i32* %tmp"  label5)))
 
-(define (fixnum?-primcall-emitter env arg)
+(define (last-3-bits-eq env arg bits)
   (let ((label1 (get-label)) (label2 (get-label))
 	(label3 (get-label)) (label4 (get-label))
 	(label5 (get-label)) (label6 (get-label)))
    (emit-expr arg env)
    (emit "%~a = load i32, i32* %tmp" label1)
    (emit "%~a = and i32 %~a, 3"      label2 label1)
-   (emit "%~a = icmp eq i32 %~a, 0"  label3 label2)
+   (emit "%~a = icmp eq i32 %~a, ~a" label3 label2 bits)
    (emit "%~a = zext i1 %~a to i32"  label4 label3)
    (emit "%~a = shl i32 %~a, 8"      label5 label4)
    (emit "%~a = or i32 %~a, 31"      label6 label5)
    (emit "store i32 %~a, i32* %tmp"  label6)))
+
+(define (fixnum?-primcall-emitter env arg)
+  (last-3-bits-eq env arg 0))
+
+(define (pair?-primcall-emitter env arg)
+  (last-3-bits-eq env arg 1))
+
+(define (closure?-primcall-emitter env arg)
+  (last-3-bits-eq env arg 2))
+
+(define (symbol?-primcall-emitter env arg)
+  (last-3-bits-eq env arg 3))
+
+(define (vector?-primcall-emitter env arg)
+  (last-3-bits-eq env arg 5))
+
+(define (string?-primcall-emitter env arg)
+  (last-3-bits-eq env arg 6))
 
 (define (boolean?-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label))
@@ -406,5 +429,31 @@
 ;; charac - taggeed with 00001111 (8 bits)
 ;; boolns - tagged with 0011111 (7 bits)
 ;; emplst - 00101111b
+
+
+;; Heap Allocation
+
+;; Tags
+
+;; 001 - Pairs
+;; 010 - Closures
+;; 011 - Symbols
+;; 101 - Vectors
+;; 110 - Strings
+
+
+;; The aim right now is to implement the datastructures Pairs, Vectors and Strings
+
+
+;; In addition to the primitives required to construct them and access their data
+
+
+;; The Pair and its primitives pair? [x], car, cdr and cons
+
+
+
+
+
+
 
 
