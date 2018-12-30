@@ -193,7 +193,6 @@
    (emit "%~a = or i32 %~a, 31"      label6 label5)
    (emit "store i32 %~a, i32* %tmp"  label6)))
 
-
 (define (not-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label)))
    (emit-expr arg env)
@@ -404,6 +403,7 @@
 ;; Compile program
 
 (define (compile-program expr)
+  (emit-prolog)
   (if (labelcall? expr) (emit-lbls expr) (emit-code "scheme_entry" '() expr '())))
 
 (define (emit-argspc count_a count_b)
@@ -412,6 +412,10 @@
    ((eqv? 1 count_a) (format #f "i32 arg~a" count_b)) 
    ( else (string-append (format #f "i32 arg~a, " count_b) (emit-argspc (- count_a 1) (+ count_b 1))))
    ))
+
+(define (emit-blank)
+  (emit "")
+  )
 
 (define (emit-header fname count)
   (emit "define i32 @~a(~a)" fname (emit-argspc count 0))
@@ -423,6 +427,10 @@
   (emit "%ret = load i32, i32* %tmp")
   (emit "ret i32 %ret")
   (emit "}"))
+
+(define (emit-prolog)
+  (emit "@hptr = external global i18*, align 8")
+  (emit-blank))
 
 
 ;; fixnum - last two bits 0, mask 11b
@@ -452,8 +460,27 @@
 
 
 
+(define (cons-primcall-emitter env arg1 arg2)
+  (let ((label1 (get-label)) (label2 (get-label))
+	(label3 (get-label)))
+   (emit-expr arg2 env)
+   (emit "%~a = load i32, i32* %tmp" label1)
+   (emit-expr arg1 env)
+   (emit "%~a = load i32, i32* %tmp" label2)
+   ;; TODO
+   (emit "store i32 %~a, i32* %tmp"  label3)))
 
+(define (car-primcall-emitter env arg)
+  (let ((label1 (get-label)) (label2 (get-label)))
+   (emit-expr arg env)
+   (emit "%~a = load i32, i32* %tmp" label1)
+   ;; TODO
+   (emit "store i32 %~a, i32* %tmp"  label2)))
 
-
-
+(define (cdr-primcall-emitter env arg)
+  (let ((label1 (get-label)) (label2 (get-label)))
+   (emit-expr arg env)
+   (emit "%~a = load i32, i32* %tmp" label1)
+   ;; TODO
+   (emit "store i32 %~a, i32* %tmp"  label2)))
 
