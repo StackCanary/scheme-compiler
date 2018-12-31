@@ -5,13 +5,15 @@
 
 #define HEAP_SIZE 1024
 
-extern long scheme_entry(); char *hptr;
+extern long scheme_entry(); long *hptr;
 
 char *root; // For potential shadow stack
 
 void hptr_inc(long value)
 {
-    *((long *) hptr++) = value;
+    // printf("Wrote %ld at %p", value , hptr);
+    
+    *hptr = value; hptr++;
 }
 
 long hptr_ptr()
@@ -21,15 +23,17 @@ long hptr_ptr()
 
 long hptr_car(long ptr)
 {
-    return 0;
+    return *((long * ) (ptr & ~3));
 }
 
 long hptr_cdr(long ptr)
 {
-    return 0;
+    long * p = (long *) (ptr & ~3); p++;
+
+    return *p;
 }
 
-unsigned char *alloc_protected_space(int size)
+char *alloc_protected_space(int size)
 {
     int page = getpagesize(); int aligned_size = ((size + page - 1) / page) * page;
     
@@ -42,7 +46,7 @@ unsigned char *alloc_protected_space(int size)
     return (p + page);
 }
 
-void free_protected_space(unsigned char* p, int size)
+void free_protected_space(char* p, int size)
 {
     int page = getpagesize(); int aligned_size = ((size + page - 1) / page) * page;
     
@@ -61,8 +65,10 @@ void print_ptr(int retval)
 
 int main()
 {
-    char * heap = hptr = alloc_protected_space(HEAP_SIZE); printf("Heap pointer at %p\n", heap);
-    
+    char * heap = alloc_protected_space(HEAP_SIZE);
+
+    hptr = (long *) heap;
+
     print_ptr(scheme_entry());
 
     free_protected_space(heap, HEAP_SIZE);
