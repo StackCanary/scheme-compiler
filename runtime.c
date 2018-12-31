@@ -5,7 +5,29 @@
 
 #define HEAP_SIZE 1024
 
-extern int scheme_entry(); char *hptr;
+extern long scheme_entry(); char *hptr;
+
+char *root; // For potential shadow stack
+
+void hptr_inc(long value)
+{
+    *((long *) hptr++) = value;
+}
+
+long hptr_ptr()
+{
+    return (long) hptr;
+}
+
+long hptr_car(long ptr)
+{
+    return 0;
+}
+
+long hptr_cdr(long ptr)
+{
+    return 0;
+}
 
 unsigned char *alloc_protected_space(int size)
 {
@@ -29,16 +51,17 @@ void free_protected_space(unsigned char* p, int size)
 
 void print_ptr(int retval)
 {
-    if      ((retval &  0x03) == 0   ) { printf("%d\n", retval >> 2);               }
+    if      ((retval &  0x03) == 0   ) { printf("%li\n", retval >> 2);               }
     else if ((retval &  0xFF) == 0x0F) { printf("%c\\%c\n", '#', retval >> 8);      }
     else if ((retval &  0x7F) == 0x1F) { printf("%s\n", retval >> 7 ? "#t" : "#f"); }
     else if  (retval == 0x2F)          { printf("'()\n");                           }
+    else if ((retval &  0x03) == 1   ) { printf("Pair at %p\n", retval);    }
     else                               { printf("Unknown 0x%x\n", retval);          }
 }
 
 int main()
 {
-    char * heap = hptr = alloc_protected_space(HEAP_SIZE);
+    char * heap = hptr = alloc_protected_space(HEAP_SIZE); printf("Heap pointer at %p\n", heap);
     
     print_ptr(scheme_entry());
 
