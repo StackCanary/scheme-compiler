@@ -475,9 +475,6 @@
 ;; The Pair and its primitives pair? [x], car, cdr and cons
 
 
-(define (emit-call-hptr_inc value)
-  (emit "call void @hptr_inc(i64 ~a)" value))
-
 (define (cons-primcall-emitter env arg1 arg2)
   (let ((label1 (get-label)) (label2 (get-label))
 	(label3 (get-label)) (label4 (get-label)))
