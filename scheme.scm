@@ -274,20 +274,19 @@
 (define (emit-begin x env)
   (cond
    ((null? x) '())
-   ( else (begin (emit-expr (car x) env) (emit-begin (cdr x) env)) )
-   ))
+   ( else (begin (emit-expr (car x) env) (emit-begin (cdr x) env)))))
 
+
+(define (emit-let-help b* new-env body e)
+  (cond ((null? b*) (emit-begin body new-env))
+	( else	 (let ((b (car b*)) (label (get-label)))
+		   (emit-expr (cadr b) e)
+		   (emit "%~a = load i64, i64* %tmp" label)
+		   (emit-let-help (cdr b*) (cons (list (car b) label) new-env) body e)
+		   ))))
 
 (define (emit-let bindings body env)
-  (let f ((b* bindings) (new-env env))
-    (cond ((null? b*) (emit-begin body new-env))
-	  ( else	 (let ((b (car b*)) (label (get-label)))
-			   (emit-expr (cadr b) env)
-			   (emit "%~a = load i64, i64* %tmp" label)
-			   (f (cdr b*)
-			      (cons (list (car b) label) new-env))
-			   )
-			 ))))
+  (emit-let-help bindings env body env))
 
 
 (define (rewrite-let* bindings body env)
@@ -338,6 +337,7 @@
     )
   )
 
+;; TODO Refactor to remove lexical scope
 (define (emit-code labl var expr env)   ; labl - func name, var - list of func args, expr - body
   (emit-header labl (length var))	; Emit Function Header
 					; Extend env to map symbols to variable locations
@@ -472,8 +472,7 @@
 ;; In addition to the primitives required to construct them and access their data
 
 
-;; The Pair and its primitives pair? [x], car, cdr and cons
-
+;; The Pair and its primitives pair? [x], car[x], cdr[x] and cons[x]
 
 (define (cons-primcall-emitter env arg1 arg2)
   (let ((label1 (get-label)) (label2 (get-label))
@@ -501,6 +500,16 @@
     (emit "%~a = load i64, i64* %tmp" label1)
     (emit "%~a = call i64 @hptr_cdr(i64 %~a)" label2 label1)
     (emit "store i64 %~a, i64* %tmp"  label2)))
+
+;; The String and its primitives
+
+
+
+;; The Vector and its primitives
+
+
+
+
 
 
 

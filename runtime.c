@@ -33,6 +33,8 @@ long hptr_cdr(long ptr)
     return *p;
 }
 
+
+
 char *alloc_protected_space(int size)
 {
     int page = getpagesize(); int aligned_size = ((size + page - 1) / page) * page;
