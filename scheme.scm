@@ -42,6 +42,7 @@
 (define (let? x) (and (pair? x) (eqv? (car x) 'let))) 
 (define (let*? x) (and (pair? x) (eqv? (car x) 'let*)))
 (define (begin? x) (and (pair? x) (eqv? (car x) 'begin)))
+(define (lambda? x) (and (pair? x) (eqv? (car x) 'lambda)))
 (define (code? x) (and (pair? x) (eqv? (car x) 'code)))
 (define (labels? x) (and (pair? x) (eqv? (car x) 'labels)))
 (define (labelcall? x) (and (pair? x) (eqv? (car x) 'labecall)))
@@ -88,18 +89,15 @@
 
 (define (get-label)
   (set! glb-label (+ 1 glb-label))
-  (format #f "var~a" (- glb-label 1))
-  )
+  (format #f "var~a" (- glb-label 1)))
 
 (define (lab-label)
   (set! glb-label (+ 1 glb-label))
-  (format #f "lab~a" (- glb-label 1))
-  )
+  (format #f "lab~a" (- glb-label 1)))
 
 (define (fun-label)
   (set! glb-label (+ 1 glb-label))
-  (format #f "fun~a" (- glb-label 1))
-  )
+  (format #f "fun~a" (- glb-label 1)))
 
 (define (add1-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label)))
@@ -268,8 +266,7 @@
     (emit-expr altern env)
     (emit "br label %~a " L3)
     (emit-label L3)
-    )
-  )
+    ))
 
 (define (emit-begin x env)
   (cond
@@ -289,13 +286,13 @@
   (emit-let-help bindings env body env))
 
 
-(define (rewrite-let* bindings body env)
+(define (transform-let* bindings body env)
   (cond
    ((null? bindings) body)
    ( else (let ((b (car bindings)) (b* (cdr bindings)))
 	    (if (null? b*)
 		(cons 'let (cons (cons b '()) body))
-		(cons 'let (cons (cons b '()) (cons (rewrite-let* b* body env) '())))
+		(cons 'let (cons (cons b '()) (cons (transform-let* b* body env) '())))
 		)))
    ))
 
@@ -337,7 +334,7 @@
     )
   )
 
-;; TODO Refactor to remove lexical scope
+;; TODO 
 (define (emit-code labl var expr env)   ; labl - func name, var - list of func args, expr - body
   (emit-header labl (length var))	; Emit Function Header
 					; Extend env to map symbols to variable locations
@@ -355,8 +352,7 @@
    ((eqv? (length list) 0) "")
    ((eqv? (length list) 1) (format #f "~a" (car list)))
    ( else (string-append (format #f "~a, " (car list)) (comma-interpersed-list (cdr list))))
-   )
-  )
+   ))
 
 (define (emit-labelcall lvar exprs env)
   (define (emit-args exprs arg-vars)
@@ -372,9 +368,41 @@
      )
     )
 
-  (emit-args exprs '())
-  
-  )
+  (emit-args exprs '()))
+
+;; TODO
+;; Emit Closure Object on heap
+(define (emit-closure lvar favr)
+  (let ((label1 (get-label)) (label2 (get-label))
+	(label3 (get-label)) (label4 (get-label)))
+    
+    (emit-variable arg1 env)
+    (emit "%~a = load i64, i64* %tmp" label1)
+    
+    (emit "%~a = call i64 (...) @hptr_ptr()" label3)
+
+    (emit "call void @hptr_inc(i64 %~a)" label1)
+
+    (emit "%~a = or i64 %~a, 2"      label4 label3)
+    (emit "store i64 %~a, i64* %tmp" label4)
+    ))
+
+;; TODO
+;; Given a lambda return the free variables
+(define (free-vars expr)
+  '())
+
+;; Annotate lambdas with their free variables
+;; TODO
+(define (transform_a expr)
+  (cond
+   [(null? expr) expr]
+   ))
+
+;; Transform lambdas into labels, code and closure forms
+;; TODO
+(define (transform_b expr)
+  '())
 
 (define (emit-primcall expr env)
   (let ((p (car expr))
@@ -398,10 +426,9 @@
    (( primcall? x) (emit-primcall x env))
    (( variable? x) (emit "store i64 %~a, i64* %tmp" (lookup x env))) 
    ((      let? x) (emit-let  (bindings x) (body x) env))
-   ((     let*? x) (emit-expr (rewrite-let* (bindings x) (body x) env) env))
+   ((     let*? x) (emit-expr (transform-let* (bindings x) (body x) env) env))
    ((    begin? x) (emit-begin (cdr x) env))
    ((   labels? x) '()) ; (labels ([fname code] ...] expr)
-   ((     code? x) '()) ; (  code (var ...) expr)
    ((labelcall? x) '()) ; (labelcall lvar expr ...)
    ((  closure? x) '()) ; (closure lvar var ...)
    )
