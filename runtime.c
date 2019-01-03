@@ -9,16 +9,26 @@ extern long scheme_entry(); long *hptr;
 
 char *root; // For potential shadow stack
 
-void hptr_inc(long value)
+long hptr_con(long a, long b)
 {
     // printf("Wrote %ld at %p", value , hptr);
+
+    long save_hptr = (long) hptr;
     
-    *hptr = value; hptr++;
+    *hptr = a; hptr++;
+    *hptr = b; hptr++;
+
+    return save_hptr | 1;
 }
 
-long hptr_ptr()
+void hptr_inc(long a)
 {
-    return (long) hptr;
+    *hptr = a; hptr++;
+}
+
+long hptr_ptr(long tag)
+{
+    return ((long) hptr) | tag;
 }
 
 long hptr_car(long ptr)
@@ -57,12 +67,13 @@ void free_protected_space(char* p, int size)
 
 void print_ptr(int retval)
 {
-    if      ((retval &  0x03) == 0   ) { printf("%li\n", retval >> 2);               }
+    if      ((retval &  0x03) == 0   ) { printf("%li\n", retval >> 2);              }
     else if ((retval &  0xFF) == 0x0F) { printf("%c\\%c\n", '#', retval >> 8);      }
     else if ((retval &  0x7F) == 0x1F) { printf("%s\n", retval >> 7 ? "#t" : "#f"); }
     else if  (retval == 0x2F)          { printf("'()\n");                           }
-    else if ((retval &  0x03) == 1   ) { printf("Pair at %p\n", retval);    }
-    else                               { printf("Unknown 0x%x\n", retval);          }
+    else if ((retval &  0x03) == 1   ) { printf("Pair at %p\n",    retval);         }
+    else if ((retval &  0x03) == 2   ) { printf("Closure at %p\n", retval);         }
+    else                               { printf("Unknown 0x%x\n",  retval);         }
 }
 
 int main()

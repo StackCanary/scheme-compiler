@@ -38,15 +38,16 @@
 	 [(cdr)          #t]
 	 [ else          #f])))
 
+(define (is-labelled? expr tag) (and (pair? expr) (eqv? (car expr) tag)))
 
-(define (let? x) (and (pair? x) (eqv? (car x) 'let))) 
-(define (let*? x) (and (pair? x) (eqv? (car x) 'let*)))
-(define (begin? x) (and (pair? x) (eqv? (car x) 'begin)))
-(define (lambda? x) (and (pair? x) (eqv? (car x) 'lambda)))
-(define (code? x) (and (pair? x) (eqv? (car x) 'code)))
-(define (labels? x) (and (pair? x) (eqv? (car x) 'labels)))
-(define (labelcall? x) (and (pair? x) (eqv? (car x) 'labecall)))
-(define (closure? x) (and (pair? x) (eqv? (car x) 'closure)))
+(define (let? x) (is-labelled? x 'let)) 
+(define (let*? x) (is-labelled? x 'let*))
+(define (begin? x) (is-labelled? x 'begin))
+(define (lambda? x) (is-labelled? x 'lambda))
+(define (code? x) (is-labelled? x 'code))
+(define (labels? x) (is-labelled? x 'labels))
+(define (labelcall? x) (is-labelled? x 'labelcall))
+(define (closure? x) (is-labelled? x 'closure))
 
 
 (define variable? symbol?)
@@ -370,21 +371,39 @@
 
   (emit-args exprs '()))
 
+(define (emit-fcnptr count)
+
+  (define (f c)
+    (cond
+     ((eqv? c 0) "")
+     ((eqv? c 1) (string-append "i64" (f (- c 1))))
+     ( else (string-append "i64, " (f (- c 1))))))
+  
+  (format #f "i64 (~a)*" (f count)))
+
 ;; TODO
-;; Emit Closure Object on heap
-(define (emit-closure lvar favr)
+;; Emit Closure Object on heap, I think I need to store the function ptr and then the values of the free variables
+(define (emit-closure lvar fvar env)
   (let ((label1 (get-label)) (label2 (get-label))
 	(label3 (get-label)) (label4 (get-label)))
-    
-    (emit-variable arg1 env)
-    (emit "%~a = load i64, i64* %tmp" label1)
-    
-    (emit "%~a = call i64 (...) @hptr_ptr()" label3)
 
-    (emit "call void @hptr_inc(i64 %~a)" label1)
+    ;; Save hptr 
+    (emit "%~a = call i64 @hptr_ptr(i64 2)" label1) ;; Get Heap Ptr for Storage on Stack
+    ;; Store Function Ptr
 
-    (emit "%~a = or i64 %~a, 2"      label4 label3)
-    (emit "store i64 %~a, i64* %tmp" label4)
+    (emit "call void @hptr_inc(i64 ptrtoint (~a @~a to i64))" (lookup lvar env) (emit-fcnptr 42)) ;; TODO change 42 to actual function arg count
+ 
+    (for-each
+     (lambda (fv)
+       (let ((fvar-label (get-label)))
+	 (emit-variable fv env)
+	 (emit "%~a = load i64, i64* %tmp" fvar-label)
+	 (emit "call void @hptr_inc(i64 %~a)" fvar-label)     
+	 )
+       )
+     fvar)
+
+    (emit "store i64 %~a, i64* %tmp" label1)         ;; 
     ))
 
 ;; TODO
@@ -419,18 +438,21 @@
 
 (define (lookup x env) (cadr (assv x env)))
 
+(define (emit-variable expr env)
+  (emit "store i64 %~a, i64* %tmp" (lookup expr env)))
+
 ;; Emit Expression into a register
 (define (emit-expr x env)
   (cond
    ((immediate? x) (emit "store i64 ~a, i64* %tmp" (immediate-rep x) ))
    (( primcall? x) (emit-primcall x env))
-   (( variable? x) (emit "store i64 %~a, i64* %tmp" (lookup x env))) 
+   (( variable? x) (emit-variable x env)) 
    ((      let? x) (emit-let  (bindings x) (body x) env))
    ((     let*? x) (emit-expr (transform-let* (bindings x) (body x) env) env))
    ((    begin? x) (emit-begin (cdr x) env))
    ((   labels? x) '()) ; (labels ([fname code] ...] expr)
    ((labelcall? x) '()) ; (labelcall lvar expr ...)
-   ((  closure? x) '()) ; (closure lvar var ...)
+   ((  closure? x) (emit-closure (cadr x) (cddr x) env)) ; (closure lvar var ...)
    )
   )
 
@@ -470,10 +492,11 @@
 
 (define (emit-epilog)
   (emit-blank)
-  (emit "declare void @hptr_inc(i64) #1")
-  (emit "declare i64 @hptr_ptr(...)  #1")
-  (emit "declare i64 @hptr_car(i64)  #1")
-  (emit "declare i64 @hptr_cdr(i64)  #1")
+  (emit "declare i64  @hptr_con(i64, i64) #1")
+  (emit "declare void @hptr_inc(i64)      #1")
+  (emit "declare i64  @hptr_ptr(i64)      #1")
+  (emit "declare i64  @hptr_car(i64)      #1")
+  (emit "declare i64  @hptr_cdr(i64)      #1")
   )
 
 ;; fixnum - last two bits 0, mask 11b
@@ -508,11 +531,9 @@
     (emit "%~a = load i64, i64* %tmp" label1)
     (emit-expr arg2 env)
     (emit "%~a = load i64, i64* %tmp" label2)
-    (emit "%~a = call i64 (...) @hptr_ptr()" label3)
-    (emit "%~a = or i64 %~a, 1"      label4 label3)
-    (emit "store i64 %~a, i64* %tmp" label4)
-    (emit "call void @hptr_inc(i64 %~a)" label1)
-    (emit "call void @hptr_inc(i64 %~a)" label2)))
+    (emit "%~a = call i64 @hptr_con(i64 %~a, i64 %~a)" label3 label1 label2)
+    (emit "store i64 %~a, i64* %tmp" label3)
+))
 
 (define (car-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label)))
