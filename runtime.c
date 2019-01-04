@@ -51,6 +51,11 @@ long hptr_closure_lab(long ptr)
     return hptr_cdr(ptr);
 }
 
+long hptr_get_freevar(long ptr, long off)
+{
+    long *p = (long *) (ptr & ~3); p++; return p[off + 2];
+}
+
 
 
 

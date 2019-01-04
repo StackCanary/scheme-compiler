@@ -507,13 +507,14 @@
 
 (define (emit-epilog)
   (emit-blank)
-  (emit "declare i64  @hptr_con(i64, i64)    #1")
-  (emit "declare void @hptr_inc(i64)         #1")
-  (emit "declare i64  @hptr_ptr(i64)         #1")
-  (emit "declare i64  @hptr_car(i64)         #1")
-  (emit "declare i64  @hptr_cdr(i64)         #1")
-  (emit "declare i64  @hptr_closure_len(i64) #1")
-  (emit "declare i64  @hptr_closure_lab(i64) #1")
+  (emit "declare i64  @hptr_con(i64, i64)         #1")
+  (emit "declare void @hptr_inc(i64)              #1")
+  (emit "declare i64  @hptr_ptr(i64)              #1")
+  (emit "declare i64  @hptr_car(i64)              #1")
+  (emit "declare i64  @hptr_cdr(i64)              #1")
+  (emit "declare i64  @hptr_closure_len(i64)      #1")
+  (emit "declare i64  @hptr_closure_lab(i64)      #1")
+  (emit "declare i64  @hptr_get_freevar(i64, i64) #1")
   )
 
 ;; fixnum - last two bits 0, mask 11b
