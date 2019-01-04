@@ -33,15 +33,24 @@ long hptr_ptr(long tag)
 
 long hptr_car(long ptr)
 {
-    return *((long * ) (ptr & ~3));
+    long *p = (long *) (ptr & ~3);      return *p;
 }
 
 long hptr_cdr(long ptr)
 {
-    long * p = (long *) (ptr & ~3); p++;
-
-    return *p;
+    long *p = (long *) (ptr & ~3); p++; return *p;
 }
+
+long hptr_closure_len(long ptr)
+{
+    return hptr_car(ptr);
+}
+
+long hptr_closure_lab(long ptr)
+{
+    return hptr_cdr(ptr);
+}
+
 
 
 

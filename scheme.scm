@@ -314,8 +314,11 @@
   (define (code-var c)
     (cadr c))
 
-  (define (code-exp c)
+  (define (code-fvr c)
     (caddr c))
+
+  (define (code-exp c)
+    (cadddr c))
 
   (define (expr-bin e)
     (cadr e)
@@ -325,26 +328,35 @@
 					; Emit functions for each binding [lvar code]
     (for-each 					
      (lambda (binding)
-       (let* ((lvar (car binding)) (code (cadr binding)) (var (code-var code)) (expr (code-exp code)) (labl (lookup lvar env)))
-	 (emit-code labl var expr env)
+       (let* ((lvar (car binding)) (code (cadr binding)) (var (code-var code)) (fvr (code-fvr code)) (expr (code-exp code)) (labl (lookup lvar env)))
+	 (emit-code labl var fvr expr env)
 	 )) bindings)
     
     ;; Emit Scheme Entry for expr
-    (emit-code "scheme_entry" '() expr env)
+    (emit-code "scheme_entry" '() '()  expr env)
     
     )
   )
 
-;; TODO 
-(define (emit-code labl var expr env)   ; labl - func name, var - list of func args, expr - body
-  (emit-header labl (length var))	; Emit Function Header
-					; Extend env to map symbols to variable locations
-  (let f ((var var) (arg 0) (env env))
-    (cond
-     ((null? var) (emit-expr expr env)) ; Emit Function Body with new-env
-     (else (f (cdr var) (+ arg 1) (cons (list (car var) (format #f "arg~a" arg)) env)))
-     ))
+;; TODO (Extend env to map free variables to their locations in the closure ptr)
+
+(define (emit-code labl var fvr expr env)   ; labl - func name, var - list of formal func args, expr - body
   
+  (emit-header labl (length var))	; Emit Function Header
+  
+  ;; Extend env with form variables
+  ;; Extend env with free variables
+  ;; Emit Body with Extended Environment
+  (let extend-var ((var var) (fvr fvr) (arg 0) (env env))
+    (cond
+     ((and (null? var) (null? fvr))
+      (emit-expr expr env)) 
+     ((pair? var)
+      (extend-var (cdr var) fvr (+ arg 1) (cons (list (car var) (format #f "arg~a" arg)) env)))
+     ((pair? fvr)
+      (extend-var var (cdr fvr) (+ arg 1) (cons (list (car fvr) (format #f "   ~a" arg)) env)))
+     ))
+
   (emit-footer))			; Emit Function Footer
 
 
@@ -389,9 +401,12 @@
 
     ;; Save hptr 
     (emit "%~a = call i64 @hptr_ptr(i64 2)" label1) ;; Get Heap Ptr for Storage on Stack
-    ;; Store Function Ptr
 
-    (emit "call void @hptr_inc(i64 ptrtoint (~a @~a to i64))" (lookup lvar env) (emit-fcnptr 42)) ;; TODO change 42 to actual function arg count
+    ;; Store Length of Free Variables
+    (emit "call void @hptr_inc(i64 %~a)" (length fvar))     
+    
+    ;; Store Function Ptr
+    (emit "call void @hptr_inc(i64 ptrtoint (~a @~a to i64))" (lookup lvar env) (emit-fcnptr 3)) ;; TODO change 42 to actual function arg count
  
     (for-each
      (lambda (fv)
@@ -460,7 +475,7 @@
 
 (define (compile-program expr)
   (emit-prolog)
-  (if (labelcall? expr) (emit-lbls expr) (emit-code "scheme_entry" '() expr '()))
+  (if (labelcall? expr) (emit-lbls expr) (emit-code "scheme_entry" '() '()  expr '()))
   (emit-epilog)
   )
 
@@ -492,11 +507,13 @@
 
 (define (emit-epilog)
   (emit-blank)
-  (emit "declare i64  @hptr_con(i64, i64) #1")
-  (emit "declare void @hptr_inc(i64)      #1")
-  (emit "declare i64  @hptr_ptr(i64)      #1")
-  (emit "declare i64  @hptr_car(i64)      #1")
-  (emit "declare i64  @hptr_cdr(i64)      #1")
+  (emit "declare i64  @hptr_con(i64, i64)    #1")
+  (emit "declare void @hptr_inc(i64)         #1")
+  (emit "declare i64  @hptr_ptr(i64)         #1")
+  (emit "declare i64  @hptr_car(i64)         #1")
+  (emit "declare i64  @hptr_cdr(i64)         #1")
+  (emit "declare i64  @hptr_closure_len(i64) #1")
+  (emit "declare i64  @hptr_closure_lab(i64) #1")
   )
 
 ;; fixnum - last two bits 0, mask 11b
