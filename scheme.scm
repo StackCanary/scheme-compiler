@@ -280,7 +280,7 @@
 	( else	 (let ((b (car b*)) (label (get-label)))
 		   (emit-expr (cadr b) e)
 		   (emit "%~a = load i64, i64* %tmp" label)
-		   (emit-let-help (cdr b*) (cons (list (car b) label) new-env) body e)
+		   (emit-let-help (cdr b*) (envput (car b) label #f 0 new-env) body e)
 		   ))))
 
 (define (emit-let bindings body env)
@@ -302,14 +302,22 @@
 
 
 					; Emit label expression (label ([lvar code] ..) expr)
-(define (emit-lbls expr)
+(define (emit-labels expr)
   
 					; Create a new environment mapping function names (lvars) to unique labels
+  
   (define (make-env b)
     (cond
      ((null? b) '())
-     ( else      (cons (list (caar b) (fun-label)) (make-env (cdr b)) ))
+     ( else      (envput (caar b) (fun-label) #f (length (car (cdadar b))) (make-env (cdr b)))) ;; Populate env with lvar -> labels not-free-var func-arg-count
      ))
+  
+
+  (define (expr-bin e)
+    (cadr e))
+
+  (define (expr-bod e)
+    (caddr e))
 
   (define (code-var c)
     (cadr c))
@@ -320,22 +328,17 @@
   (define (code-exp c)
     (cadddr c))
 
-  (define (expr-bin e)
-    (cadr e)
-    )
   
-  (let ((bindings (expr-bin expr)) (env (make-env bindings)))
+  (let* ((bindings (expr-bin expr)) (env (make-env bindings)))
 					; Emit functions for each binding [lvar code]
     (for-each 					
      (lambda (binding)
-       (let* ((lvar (car binding)) (code (cadr binding)) (var (code-var code)) (fvr (code-fvr code)) (expr (code-exp code)) (labl (lookup lvar env)))
+       (let* ((lvar (car binding)) (code (cadr binding)) (var (code-var code)) (fvr (code-fvr code)) (expr (code-exp code)) (labl (lookup-env-val lvar env)))
 	 (emit-code labl var fvr expr env)
 	 )) bindings)
     
     ;; Emit Scheme Entry for expr
-    (emit-code "scheme_entry" '() '()  expr env)
-    
-    )
+    (emit-code "scheme_entry" '() '()  (expr-bod expr) env))
   )
 
 ;; TODO (Extend env to map free variables to their locations in the closure ptr)
@@ -352,9 +355,9 @@
      ((and (null? var) (null? fvr))
       (emit-expr expr env)) 
      ((pair? var)
-      (extend-var (cdr var) fvr (+ arg 1) (cons (list (car var) (format #f "arg~a" arg)) env)))
+      (extend-var (cdr var) fvr (+ arg 1) (envput (car var) (format #f "arg~a" arg) #f 0 env)))
      ((pair? fvr)
-      (extend-var var (cdr fvr) (+ arg 1) (cons (list (car fvr) (format #f "   ~a" arg)) env)))
+      (extend-var var (cdr fvr) (+ arg 1) (envput (car fvr) (format #f    "~a" arg) #t 0 env)))
      ))
 
   (emit-footer))			; Emit Function Footer
@@ -403,10 +406,10 @@
     (emit "%~a = call i64 @hptr_ptr(i64 2)" label1) ;; Get Heap Ptr for Storage on Stack
 
     ;; Store Length of Free Variables
-    (emit "call void @hptr_inc(i64 %~a)" (length fvar))     
+    (emit "call void @hptr_inc(i64 ~a)" (length fvar))     
     
     ;; Store Function Ptr
-    (emit "call void @hptr_inc(i64 ptrtoint (~a @~a to i64))" (lookup lvar env) (emit-fcnptr 3)) ;; TODO change 42 to actual function arg count
+    (emit "call void @hptr_inc(i64 ptrtoint (~a @~a to i64))" (emit-fcnptr (lookup-env-fun-arg lvar env)) (lookup-env-val lvar env)) ;; TODO change 42 to actual function arg count
  
     (for-each
      (lambda (fv)
@@ -451,10 +454,27 @@
    ((null?    x)  47)
    ))
 
-(define (lookup x env) (cadr (assv x env)))
+;; (key-> value is-free func-arg)
+
+(define (lookup x env) (cdr (assv x env)))
+
+(define (envput x val free args env) (cons (list x val free args) env))
+
+(define (lookup-env-val x env)
+  (car (lookup x env)))
+
+(define (lookup-is-free x env)
+  (cadr (lookup x env)))
+
+(define (lookup-env-fun-arg x env)
+  (caddr (lookup x env)))
 
 (define (emit-variable expr env)
-  (emit "store i64 %~a, i64* %tmp" (lookup expr env)))
+   (let* ((tuple (lookup expr env)) (free (cadr tuple)) (value (car tuple)) (funarg (caddr tuple)))
+    (if free
+	(emit "call i64 @hptr_get_freevar(i64 ~a, i64* %tmp)" value) ;; Get freevar from closure pointer
+	(emit "store i64 %~a, i64* %tmp" value)
+	)))
 
 ;; Emit Expression into a register
 (define (emit-expr x env)
@@ -475,15 +495,15 @@
 
 (define (compile-program expr)
   (emit-prolog)
-  (if (labelcall? expr) (emit-lbls expr) (emit-code "scheme_entry" '() '()  expr '()))
+  (if (labels? expr) (emit-labels expr) (emit-code "scheme_entry" '() '()  expr '()))
   (emit-epilog)
   )
 
 (define (emit-argspc count_a count_b)
   (cond
    ((zero? count_a) "")
-   ((eqv? 1 count_a) (format #f "i64 arg~a" count_b)) 
-   ( else (string-append (format #f "i64 arg~a, " count_b) (emit-argspc (- count_a 1) (+ count_b 1))))
+   ((eqv? 1 count_a) (format #f "i64 %arg~a" count_b)) 
+   ( else (string-append (format #f "i64 %arg~a, " count_b) (emit-argspc (- count_a 1) (+ count_b 1))))
    ))
 
 (define (emit-blank)
@@ -507,14 +527,15 @@
 
 (define (emit-epilog)
   (emit-blank)
-  (emit "declare i64  @hptr_con(i64, i64)         #1")
-  (emit "declare void @hptr_inc(i64)              #1")
-  (emit "declare i64  @hptr_ptr(i64)              #1")
-  (emit "declare i64  @hptr_car(i64)              #1")
-  (emit "declare i64  @hptr_cdr(i64)              #1")
-  (emit "declare i64  @hptr_closure_len(i64)      #1")
-  (emit "declare i64  @hptr_closure_lab(i64)      #1")
-  (emit "declare i64  @hptr_get_freevar(i64, i64) #1")
+  (emit "declare i64  @hptr_con(i64, i64)          #1")
+  (emit "declare void @hptr_inc(i64)               #1")
+  (emit "declare i64  @hptr_ptr(i64)               #1")
+  (emit "declare i64  @hptr_car(i64)               #1")
+  (emit "declare i64  @hptr_cdr(i64)               #1")
+  (emit "declare i64  @hptr_closure_len()          #1")
+  (emit "declare i64  @hptr_closure_lab()          #1")
+  (emit "declare i64  @hptr_get_freevar(i64, i64*) #1")
+  (emit "declare i64  @hptr_set_clsrptr(i64)       #1")
   )
 
 ;; fixnum - last two bits 0, mask 11b

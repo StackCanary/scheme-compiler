@@ -5,7 +5,7 @@
 
 #define HEAP_SIZE 1024
 
-extern long scheme_entry(); long *hptr;
+extern long scheme_entry(); long *hptr; long cptr;
 
 char *root; // For potential shadow stack
 
@@ -41,20 +41,27 @@ long hptr_cdr(long ptr)
     long *p = (long *) (ptr & ~3); p++; return *p;
 }
 
-long hptr_closure_len(long ptr)
+long hptr_closure_len()
 {
-    return hptr_car(ptr);
+    return hptr_car(cptr);
 }
 
-long hptr_closure_lab(long ptr)
+long hptr_closure_lab()
 {
-    return hptr_cdr(ptr);
+    return hptr_cdr(cptr);
 }
 
-long hptr_get_freevar(long ptr, long off)
+long hptr_get_freevar(long off, long *tmp)
 {
-    long *p = (long *) (ptr & ~3); p++; return p[off + 2];
+    long *p = (long *) (cptr & ~3); *tmp = p[off + 2];
 }
+
+void hptr_set_clsrptr(long ptr)
+{
+    cptr = ptr;
+}
+
+
 
 
 
