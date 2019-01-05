@@ -341,9 +341,8 @@
     (emit-code "scheme_entry" '() '()  (expr-bod expr) env))
   )
 
-;; TODO (Extend env to map free variables to their locations in the closure ptr)
 
-(define (emit-code labl var fvr expr env)   ; labl - func name, var - list of formal func args, expr - body
+(define (emit-code labl var fvr expr env)   ; labl - func name, var - list of formal func args, fvr - free vars, expr - body
   
   (emit-header labl (length var))	; Emit Function Header
   
@@ -396,7 +395,6 @@
   
   (format #f "i64 (~a)*" (f count)))
 
-;; TODO
 ;; Emit Closure Object on heap, I think I need to store the function ptr and then the values of the free variables
 (define (emit-closure lvar fvar env)
   (let ((label1 (get-label)) (label2 (get-label))
@@ -409,8 +407,9 @@
     (emit "call void @hptr_inc(i64 ~a)" (length fvar))     
     
     ;; Store Function Ptr
-    (emit "call void @hptr_inc(i64 ptrtoint (~a @~a to i64))" (emit-fcnptr (lookup-env-fun-arg lvar env)) (lookup-env-val lvar env)) ;; TODO change 42 to actual function arg count
- 
+    (emit "call void @hptr_inc(i64 ptrtoint (~a @~a to i64))" (emit-fcnptr (lookup-env-fun-arg lvar env)) (lookup-env-val lvar env)) ;; Store Fcn ptr on heap
+
+    ;; Store Free Variables into Heap
     (for-each
      (lambda (fv)
        (let ((fvar-label (get-label)))
@@ -421,6 +420,7 @@
        )
      fvar)
 
+    ;; Emit Ptr to Closure Object we just created
     (emit "store i64 %~a, i64* %tmp" label1)         ;; 
     ))
 
