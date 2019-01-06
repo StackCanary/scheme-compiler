@@ -47,6 +47,7 @@
 (define (code? x) (is-labelled? x 'code))
 (define (labels? x) (is-labelled? x 'labels))
 (define (labelcall? x) (is-labelled? x 'labelcall))
+(define (funcall? x) (is-labelled? x 'funcall))
 (define (closure? x) (is-labelled? x 'closure))
 
 
@@ -349,14 +350,14 @@
   ;; Extend env with form variables
   ;; Extend env with free variables
   ;; Emit Body with Extended Environment
-  (let extend-var ((var var) (fvr fvr) (arg 0) (env env))
+  (let extend-var ((var var) (fvr fvr) (var-arg 0) (fvr-arg 0) (env env))
     (cond
      ((and (null? var) (null? fvr))
       (emit-expr expr env)) 
      ((pair? var)
-      (extend-var (cdr var) fvr (+ arg 1) (envput (car var) (format #f "arg~a" arg) #f 0 env)))
+      (extend-var (cdr var) fvr (+ var-arg 1) fvr-arg (envput (car var) (format #f "arg~a" var-arg) #f 0 env)))
      ((pair? fvr)
-      (extend-var var (cdr fvr) (+ arg 1) (envput (car fvr) (format #f    "~a" arg) #t 0 env)))
+      (extend-var var (cdr fvr) var-arg (+ fvr-arg 1) (envput (car fvr) (format #f    "~a" fvr-arg) #t 0 env)))
      ))
 
   (emit-footer))			; Emit Function Footer
@@ -365,14 +366,14 @@
 (define (comma-interpersed-list list)
   (cond
    ((eqv? (length list) 0) "")
-   ((eqv? (length list) 1) (format #f "~a" (car list)))
-   ( else (string-append (format #f "~a, " (car list)) (comma-interpersed-list (cdr list))))
+   ((eqv? (length list) 1) (format #f "i64 %~a" (car list)))
+   ( else (string-append (format #f "i64 %~a, " (car list)) (comma-interpersed-list (cdr list))))
    ))
 
 (define (emit-labelcall lvar exprs env)
   (define (emit-args exprs arg-vars)
     (cond 
-     ((null? exprs) (emit "call i64 @~a(~a)" (lookup lvar env) (comma-interpersed-list (reverse arg-vars))))
+     ((null? exprs) (emit "call i64 @~a(~a)" (lookup-env-val lvar env) (comma-interpersed-list (reverse arg-vars))))
      ( else
        (let ((label (get-label)))
 	 (emit-expr (car exprs) env)
@@ -384,6 +385,35 @@
     )
 
   (emit-args exprs '()))
+
+;; Set and Restore the Closure Pointer 
+(define (emit-funcall fun-expr arg-exprs env)
+  
+  (define (emit-args a-exprs a-vars)
+    (cond 
+     ((null? a-exprs)
+      (let ((clsptr (get-label)) (funptr (get-label)) (funptr_cast (get-label)) (prev_clsptr (get-label)) (retval (get-label)))
+	(emit-expr fun-expr env) ;; Put Closure Ptr in Tmp
+	(emit "%~a = load i64, i64* %tmp" clsptr) ;; Load New Closure Ptr
+	(emit "%~a = call i64 @hptr_get_clsptr()" prev_clsptr) ;; Save Prev Clsr Ptr
+	(emit "call void @hptr_set_clsptr(i64 %~a)" clsptr) ;; Set New Clsr Ptr
+	(emit "%~a = call i64 @hptr_closure_lab()" funptr) ;; Load FunPtr from ClsPtr
+	(emit "%~a = inttoptr i64 %~a to ~a" funptr_cast funptr (emit-fcnptr (length arg-exprs)))
+	(emit "%~a = call i64 %~a(~a)" retval funptr_cast  (comma-interpersed-list (reverse a-vars))) ;; Call FunPtr
+	(emit "call void @hptr_set_clsptr(i64 %~a)" prev_clsptr) ;;  Restore Prev Clsr Ptr
+	(emit "store i64 %~a, i64* %tmp" retval)       
+	)
+      )
+     ( else
+       (let ((label (get-label)))
+	 (emit-expr (car a-exprs) env)
+	 (emit "%~a = load i64, i64* %tmp" label)
+	 (emit-args (cdr a-exprs) (cons label a-vars)))
+       )
+     )
+    )
+
+  (emit-args arg-exprs '()))
 
 (define (emit-fcnptr count)
 
@@ -487,6 +517,7 @@
    ((    begin? x) (emit-begin (cdr x) env))
    ((   labels? x) '()) ; (labels ([fname code] ...] expr)
    ((labelcall? x) '()) ; (labelcall lvar expr ...)
+   ((  funcall? x) (emit-funcall (cadr x) (cddr x) env)) ; (funcall expr ...)
    ((  closure? x) (emit-closure (cadr x) (cddr x) env)) ; (closure lvar var ...)
    )
   )
@@ -535,7 +566,8 @@
   (emit "declare i64  @hptr_closure_len()          #1")
   (emit "declare i64  @hptr_closure_lab()          #1")
   (emit "declare i64  @hptr_get_freevar(i64, i64*) #1")
-  (emit "declare i64  @hptr_set_clsrptr(i64)       #1")
+  (emit "declare void @hptr_set_clsptr(i64)        #1")
+  (emit "declare i64  @hptr_get_clsptr()           #1")
   )
 
 ;; fixnum - last two bits 0, mask 11b

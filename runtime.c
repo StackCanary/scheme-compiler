@@ -54,11 +54,19 @@ long hptr_closure_lab()
 long hptr_get_freevar(long off, long *tmp)
 {
     long *p = (long *) (cptr & ~3); *tmp = p[off + 2];
+
+    printf("Offset %d\n", off);
+
 }
 
-void hptr_set_clsrptr(long ptr)
+void hptr_set_clsptr(long ptr)
 {
     cptr = ptr;
+}
+
+long hptr_get_clsptr()
+{
+    return cptr;
 }
 
 
