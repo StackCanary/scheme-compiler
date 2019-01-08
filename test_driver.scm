@@ -74,6 +74,13 @@
 (display (test "(fixnum->char 1040)"   #\A)) (newline)
 (display (test "(mul 9 5)" 45)) (newline)
 (display (test "(mul 3 4)" 12)) (newline)
+
+(display
+ (test "(labels ((f0 (code () (x y) (add x y)))
+                 (f1 (code (y) (x) (funcall (closure f0 x y) ))))
+                (let ((x 5)) (funcall (closure f1 x) 3) ))" 8)
+ ) (newline)
+
 (last)
 
 

@@ -101,6 +101,10 @@
   (set! glb-label (+ 1 glb-label))
   (format #f "fun~a" (- glb-label 1)))
 
+(define (lvr-label)
+  (set! glb-label (+ 1 glb-label))
+  (string->symbol (format #f "f~a" (- glb-label 1))))
+
 (define (add1-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label)))
     (emit-expr arg env)
@@ -398,7 +402,7 @@
 	(emit "%~a = call i64 @hptr_get_clsptr()" prev_clsptr) ;; Save Prev Clsr Ptr
 	(emit "call void @hptr_set_clsptr(i64 %~a)" clsptr) ;; Set New Clsr Ptr
 	(emit "%~a = call i64 @hptr_closure_lab()" funptr) ;; Load FunPtr from ClsPtr
-	(emit "%~a = inttoptr i64 %~a to ~a" funptr_cast funptr (emit-fcnptr (length arg-exprs)))
+	(emit "%~a = inttoptr i64 %~a to ~a" funptr_cast funptr (emit-fcnptr (length arg-exprs))) ;; Cast from long to function pointer
 	(emit "%~a = call i64 %~a(~a)" retval funptr_cast  (comma-interpersed-list (reverse a-vars))) ;; Call FunPtr
 	(emit "call void @hptr_set_clsptr(i64 %~a)" prev_clsptr) ;;  Restore Prev Clsr Ptr
 	(emit "store i64 %~a, i64* %tmp" retval)       
@@ -463,13 +467,73 @@
 ;; TODO
 (define (transform_a expr)
   (cond
-   [(null? expr) expr]
+   [(  null? expr) expr]
+
    ))
 
-;; Transform lambdas into labels, code and closure forms
+;; Transform lambdas annoted with free variables into labels, code and closure forms
 ;; TODO
 (define (transform_b expr)
-  '())
+
+  (define (mk-code  var fvr body)
+    (cons*    'code var fvr body))
+  
+  (define (mk-clos lvar fvr)
+    (cons* 'closure lvar fvr))
+
+  ;; Top Level Labels
+  (define labels '())
+
+  (define (lhs x) (car x))
+
+  (define (rhs x)(cadr x))
+
+  (define (transform-let-bindings bindings)
+
+    (map
+
+     (lambda (binding)
+
+       (let ((lhs (lhs binding)) (rhs (rhs binding)))
+
+	 (list lhs (transform rhs))
+	 
+	 )
+       )
+
+     bindings)
+    
+    )
+  
+  (define (transform x)
+    (cond
+     [(     null? x) x]
+     [(   lambda? x) (let* ((var (cadr x)) (fvr (caddr x)) (body (cdddr x)) (lvar (lvr-label)) (body (transform body)))
+		       
+		       ;; Put code into labels, continue transformation on body and Return Closure
+		       (set! labels
+			     (cons (list lvar (mk-code var fvr body)) labels))
+
+		       (mk-clos lvar fvr) ;; Change Lambda to Closure
+		       
+		      )
+      ] ;; TODO (cadr) - var, (caddr) - fvr, (cdddr) - body
+     [(immediate? x) x]
+     [( primcall? x) (cons* (car x) transform (cdr x))] 
+     [( variable? x) x]
+     [(      let? x) (cons* 'let   (transform-let-bindings (bindings x)) (transform (body x)))] ;; TODO tranform bindings
+     [(     let*? x) (cons* 'let*  (transform-let-bindings (bindings x)) (transform (body x)))] ;; TODO transform bindings
+     [(    begin? x) (cons* 'begin (transform (cdr x)))] ;; TODO (cdr x)
+     [(     list? x) (map transform x)]
+     [       else    (error "Unimplemented transformation in transform_b")]))
+
+
+  (let ((transformed-expr (transform expr)))
+
+    (list 'labels labels transformed-expr)
+    
+    )
+  )
 
 (define (emit-primcall expr env)
   (let ((p (car expr))
