@@ -36,6 +36,9 @@
 	 [(cons)         #t]
 	 [(car)          #t]
 	 [(cdr)          #t]
+	 [(make-vector)  #t]
+	 [(vector-set!)  #t]
+	 [(vector-ref)   #t]
 	 [ else          #f])))
 
 (define (is-labelled? expr tag) (and (pair? expr) (eqv? (car expr) tag)))
@@ -80,6 +83,9 @@
     [(cons)         cons-primcall-emitter]
     [(car)          car-primcall-emitter]
     [(cdr)          cdr-primcall-emitter]
+    [(make-vector)  make-vector-primcall-emitter]
+    [(vector-set!)  vector-set-primcall-emitter]
+    [(vector-ref)   vector-ref-primcall-emitter]
     ))
 
 ;;  not,  boolean?,
@@ -166,7 +172,7 @@
 	(label5 (get-label)) (label6 (get-label)))
     (emit-expr arg env)
     (emit "%~a = load i64, i64* %tmp" label1)
-    (emit "%~a = and i64 %~a, 3"      label2 label1)
+    (emit "%~a = and i64 %~a, 3"      label2 label1) ;; TODO FIX
     (emit "%~a = icmp eq i64 %~a, ~a" label3 label2 bits)
     (emit "%~a = zext i1 %~a to i64"  label4 label3)
     (emit "%~a = shl i64 %~a, 8"      label5 label4)
@@ -638,7 +644,8 @@
   (emit "declare void @hptr_set_clsptr(i64)           #1")
   (emit "declare i64  @hptr_get_clsptr()              #1")
   (emit "declare void @hptr_vector_set(i64, i64, i64) #1")
-  (emit "declare i64  @hptr_vector_get(i64, i64, i64) #1")
+  (emit "declare void @hptr_vector_ref(i64, i64, i64*)#1")
+  (emit "declare i64  @hptr_vector_mak(i64, i64)      #1")
   )
 
 ;; fixnum - last two bits 0, mask 11b
@@ -693,6 +700,11 @@
 
 ;; The String and its primitives
 
+
+
+
+;; The Vector and its primitives vector?, vector, vector-set, vector-ref
+
 ;; Create Vector of Length arg1, Populated wtih arg2
 (define (make-vector-primcall-emitter env arg1 arg2)
   (let ((label1 (get-label)) (label2 (get-label)) (label3 (get-label)))
@@ -700,12 +712,40 @@
     (emit "%~a = load i64, i64* %tmp" label1)
     (emit-expr arg2 env)
     (emit "%~a = load i64, i64* %tmp" label2)
-    (emit "%~a = call i64 @hptr_vector_mak(i64 %~a)" label3 label1 label2)
-    (emit "store i64 %~a, i64* %tmp"  label2)
+    (emit "%~a = call i64 @hptr_vector_mak(i64 %~a, i64 %~a)" label3 label1 label2)
+    (emit "store i64 %~a, i64* %tmp"  label3)
     )
   )
 
-;; The Vector and its primitives vector?, vector, vector-set, vector-ref
+;; Create Vector of Length arg1, Populated wtih arg2
+(define (vector-set-primcall-emitter env arg1 arg2 arg3)
+  (let ((label1 (get-label)) (label2 (get-label)) (label3 (get-label)) (label4 (get-label)))
+    (emit-expr arg1 env)
+    (emit "%~a = load i64, i64* %tmp" label1)
+    (emit-expr arg2 env)
+    (emit "%~a = load i64, i64* %tmp" label2)
+    (emit-expr arg3 env)
+    (emit "%~a = load i64, i64* %tmp" label3)
+    (emit "call void @hptr_vector_set(i64 %~a, i64 %~a, i64 %~a)" label1 label2 label3)
+    )
+  )
+
+;; Create Vector of Length arg1, Populated wtih arg2
+(define (vector-ref-primcall-emitter env arg1 arg2)
+  (let ((label1 (get-label)) (label2 (get-label)))
+    (emit-expr arg1 env)
+    (emit "%~a = load i64, i64* %tmp" label1)
+    (emit-expr arg2 env)
+    (emit "%~a = load i64, i64* %tmp" label2)
+    (emit "call void @hptr_vector_ref(i64 %~a, i64 %~a, i64* %tmp)" label1 label2)
+    )
+  )
+
+
+
+
+
+
 
 
 

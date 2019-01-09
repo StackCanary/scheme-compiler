@@ -33,12 +33,12 @@ long hptr_ptr(long tag)
 
 long hptr_car(long ptr)
 {
-    long *p = (long *) (ptr & ~3);      return *p;
+    long *p = (long *) (ptr & ~7);      return *p;
 }
 
 long hptr_cdr(long ptr)
 {
-    long *p = (long *) (ptr & ~3); p++; return *p;
+    long *p = (long *) (ptr & ~7); p++; return *p;
 }
 
 long hptr_closure_len()
@@ -71,6 +71,8 @@ long hptr_vector_mak(long size, long value)
 {
     long retval = hptr_ptr(5);
 
+    hptr_inc(size);
+
     size = size / 4;
 
     for (int i = 0; i < size; i++)
@@ -81,21 +83,21 @@ long hptr_vector_mak(long size, long value)
 
 void hptr_vector_set(long vectr, long index, long  val)
 {
-    long *p = (long *) (vectr & ~3);
+    long *p = (long *) (vectr & ~7);
 
-    if ( index < p[0] )
-	p[index + 1] = val;
+    if ( index / 4  < p[0] / 4)
+	p[index / 4 + 1] = val;
     else
 	printf("Index out of bounds in vector-set\n");
     
 }
 
-long hptr_vector_ref(long vectr, long index, long *tmp)
+void hptr_vector_ref(long vectr, long index, long *tmp)
 {
-    long *p = (long *) (vectr & ~3);
+    long *p = (long *) (vectr & ~7);
 
-    if ( index < p[0] )
-	*tmp = p[index + 1];
+    if ( index / 4  < p[0] / 4)
+	*tmp = p[index / 4 + 1];
     else
 	printf("Index out of bounds in vector-ref\n");
     
@@ -123,15 +125,17 @@ void free_protected_space(char* p, int size)
     munmap(p - page, aligned_size + 2 * page);
 }
 
+
+
 void print_ptr(int retval)
 {
     if      ((retval &  0x03) == 0   ) { printf("%li\n", retval >> 2);              }
     else if ((retval &  0xFF) == 0x0F) { printf("%c\\%c\n", '#', retval >> 8);      }
     else if ((retval &  0x7F) == 0x1F) { printf("%s\n", retval >> 7 ? "#t" : "#f"); }
     else if  (retval == 0x2F)          { printf("'()\n");                           }
-    else if ((retval &  0x03) == 1   ) { printf("Pair at %p\n",    retval);         }
-    else if ((retval &  0x03) == 2   ) { printf("Closure at %p\n", retval);         }
-    else if ((retval &  0x03) == 5   ) { printf("Vector at %p\n",  retval);         }
+    else if ((retval &  0x07) == 1   ) { printf("Pair at %p\n",    retval);         }
+    else if ((retval &  0x07) == 2   ) { printf("Closure at %p\n", retval);         }
+    else if ((retval &  0x07) == 5   ) { printf("Vector at %p\n",  retval);         }
     else                               { printf("Unknown 0x%x\n",  retval);         }
 }
 
