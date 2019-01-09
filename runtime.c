@@ -67,7 +67,39 @@ long hptr_get_clsptr()
 }
 
 
+long hptr_vector_mak(long size, long value)
+{
+    long retval = hptr_ptr(5);
 
+    size = size / 4;
+
+    for (int i = 0; i < size; i++)
+	hptr_inc(value);
+
+    return retval;
+}
+
+void hptr_vector_set(long vectr, long index, long  val)
+{
+    long *p = (long *) (vectr & ~3);
+
+    if ( index < p[0] )
+	p[index + 1] = val;
+    else
+	printf("Index out of bounds in vector-set\n");
+    
+}
+
+long hptr_vector_ref(long vectr, long index, long *tmp)
+{
+    long *p = (long *) (vectr & ~3);
+
+    if ( index < p[0] )
+	*tmp = p[index + 1];
+    else
+	printf("Index out of bounds in vector-ref\n");
+    
+}
 
 
 
@@ -99,6 +131,7 @@ void print_ptr(int retval)
     else if  (retval == 0x2F)          { printf("'()\n");                           }
     else if ((retval &  0x03) == 1   ) { printf("Pair at %p\n",    retval);         }
     else if ((retval &  0x03) == 2   ) { printf("Closure at %p\n", retval);         }
+    else if ((retval &  0x03) == 5   ) { printf("Vector at %p\n",  retval);         }
     else                               { printf("Unknown 0x%x\n",  retval);         }
 }
 

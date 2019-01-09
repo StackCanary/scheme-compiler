@@ -535,6 +535,11 @@
     )
   )
 
+;; TODO Variable Transformation
+(define (transform_c expr)
+  '()
+  )
+
 (define (emit-primcall expr env)
   (let ((p (car expr))
 	(a (cdr expr)))
@@ -622,16 +627,18 @@
 
 (define (emit-epilog)
   (emit-blank)
-  (emit "declare i64  @hptr_con(i64, i64)          #1")
-  (emit "declare void @hptr_inc(i64)               #1")
-  (emit "declare i64  @hptr_ptr(i64)               #1")
-  (emit "declare i64  @hptr_car(i64)               #1")
-  (emit "declare i64  @hptr_cdr(i64)               #1")
-  (emit "declare i64  @hptr_closure_len()          #1")
-  (emit "declare i64  @hptr_closure_lab()          #1")
-  (emit "declare i64  @hptr_get_freevar(i64, i64*) #1")
-  (emit "declare void @hptr_set_clsptr(i64)        #1")
-  (emit "declare i64  @hptr_get_clsptr()           #1")
+  (emit "declare i64  @hptr_con(i64, i64)             #1")
+  (emit "declare void @hptr_inc(i64)                  #1")
+  (emit "declare i64  @hptr_ptr(i64)                  #1")
+  (emit "declare i64  @hptr_car(i64)                  #1")
+  (emit "declare i64  @hptr_cdr(i64)                  #1")
+  (emit "declare i64  @hptr_closure_len()             #1")
+  (emit "declare i64  @hptr_closure_lab()             #1")
+  (emit "declare i64  @hptr_get_freevar(i64, i64*)    #1")
+  (emit "declare void @hptr_set_clsptr(i64)           #1")
+  (emit "declare i64  @hptr_get_clsptr()              #1")
+  (emit "declare void @hptr_vector_set(i64, i64, i64) #1")
+  (emit "declare i64  @hptr_vector_get(i64, i64, i64) #1")
   )
 
 ;; fixnum - last two bits 0, mask 11b
@@ -686,9 +693,21 @@
 
 ;; The String and its primitives
 
+;; Create Vector of Length arg1, Populated wtih arg2
+(define (make-vector-primcall-emitter env arg1 arg2)
+  (let ((label1 (get-label)) (label2 (get-label)) (label3 (get-label)))
+    (emit-expr arg1 env)
+    (emit "%~a = load i64, i64* %tmp" label1)
+    (emit-expr arg2 env)
+    (emit "%~a = load i64, i64* %tmp" label2)
+    (emit "%~a = call i64 @hptr_vector_mak(i64 %~a)" label3 label1 label2)
+    (emit "store i64 %~a, i64* %tmp"  label2)
+    )
+  )
+
+;; The Vector and its primitives vector?, vector, vector-set, vector-ref
 
 
-;; The Vector and its primitives
 
 
 
