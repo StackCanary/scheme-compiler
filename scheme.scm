@@ -52,6 +52,7 @@
 (define (labelcall? x) (is-labelled? x 'labelcall))
 (define (funcall? x) (is-labelled? x 'funcall))
 (define (closure? x) (is-labelled? x 'closure))
+(define (set? x) (is-labelled? x 'set!))
 
 
 (define variable? symbol?)
@@ -339,9 +340,10 @@
   (define (code-exp c)
     (cadddr c))
 
-  
+  ;; 
   (let* ((bindings (expr-bin expr)) (env (make-env bindings)))
 					; Emit functions for each binding [lvar code]
+    
     (for-each 					
      (lambda (binding)
        (let* ((lvar (car binding)) (code (cadr binding)) (var (code-var code)) (fvr (code-fvr code)) (expr (code-exp code)) (labl (lookup-env-val lvar env)))
@@ -525,7 +527,7 @@
 		      )
       ] ;; TODO (cadr) - var, (caddr) - fvr, (cdddr) - body
      [(immediate? x) x]
-     [( primcall? x) (cons* (car x) transform (cdr x))] 
+     [( primcall? x) (cons* (car x) (transform (cdr x)))] 
      [( variable? x) x]
      [(      let? x) (cons* 'let   (transform-let-bindings (bindings x)) (transform (body x)))] ;; TODO tranform bindings
      [(     let*? x) (cons* 'let*  (transform-let-bindings (bindings x)) (transform (body x)))] ;; TODO transform bindings
@@ -542,8 +544,90 @@
   )
 
 ;; TODO Variable Transformation
+;; Citation https://github.com/namin/inc/
 (define (transform_c expr)
-  '()
+
+  (define assignable '())
+
+  ;; TODO Double Check
+  (define (assignable? variable)
+    (member variable assignable))
+
+  ;; TODO Double Check
+  (define (make-assignable variable)
+    (unless (assignable? variable)
+      (set! assignable (cons variable assignable))))
+
+  ;; TODO Double Check  
+  (define (find-assignable expr)
+    (when (set? expr)
+      (make-assignable (cadr expr))
+      )
+    (when (list? expr)
+      (for-each find-assignable expr))
+    )
+
+  (define (mk-lambda var fvr body)
+    (cons* 'lambda var fvr body)
+    )
+
+  (define (mk-let bindings body)
+    (cons* 'let   bindings body)
+    )
+
+  ;; TODO Double Check  
+  (define (transform expr)
+    (cond
+     [(   set? expr)
+      (list 'vector-set! (cadr expr) 0 (transform (caddr expr)))
+      ]
+     
+     [(lambda? expr)
+      (let ((a-vars (filter assignable? (cadr expr))))
+	(cond
+	 [(null? a-vars)
+	  (mk-lambda (cadr expr) (caddr expr) (transform (cdddr expr)))
+	  ]
+	 [ else
+	   (mk-lambda (cadr expr)
+		      (caddr expr)
+		      (mk-let
+		       (map (lambda (v) (list v (list 'make-vector 1 v))) a-vars)
+		       (transform (cdddr expr))
+		       ))
+	   ]
+	 )
+	)
+      ]
+     
+     [(   let? expr) ;; TODO
+      (mk-let
+       (map (lambda (binding)
+              (let ([var (car binding)]
+                    [val (transform (cadr binding))])
+                (list var
+                      (if (assignable? var)
+			  (list 'make-vector 1 val)
+                          val))))
+            (cadr expr))
+       (transform (cddr expr)))
+      ]
+
+     [(  list? expr)
+      (map transform expr)
+      ]
+
+     [(and (variable? expr) (assignable? expr))
+      (list 'vector-ref expr 0)
+      ]
+
+     [else expr]
+     )
+    )
+
+  (find-assignable expr)
+
+  (transform expr)
   )
 
 (define (emit-primcall expr env)
