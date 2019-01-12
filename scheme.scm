@@ -591,10 +591,10 @@
 	 [ else
 	   (mk-lambda (cadr expr)
 		      (caddr expr)
-		      (mk-let
-		       (map (lambda (v) (list v (list 'make-vector 1 v))) a-vars)
-		       (transform (cdddr expr))
-		       ))
+		      (list (mk-let
+			     (map (lambda (v) (list v (list 'make-vector 1 v))) a-vars)
+			     (transform (cdddr expr))
+			)))
 	   ]
 	 )
 	)
