@@ -4,10 +4,25 @@
 #include <sys/mman.h>
 
 #define HEAP_SIZE 1024
+#define STCK_SIZE 1024 * 1024
 
-extern long scheme_entry(); long *hptr; long cptr;
+extern long scheme_entry();
 
-char *root; // For potential shadow stack
+long *hptr; // Pointer to Top of Heap
+long  cptr; // Pointer to Current Closure Context
+long *sptr; // Pointer to Top of Shadow Stack
+long *root; // Pointer to Shadow Stack
+
+
+void stack_psh(long val)
+{
+    *sptr++ = val; 
+}
+
+void stack_pop()
+{
+    sptr--;
+}
 
 long hptr_con(long a, long b)
 {
@@ -103,8 +118,6 @@ void hptr_vector_ref(long vectr, long index, long *tmp)
     
 }
 
-
-
 char *alloc_protected_space(int size)
 {
     int page = getpagesize(); int aligned_size = ((size + page - 1) / page) * page;
@@ -142,12 +155,16 @@ void print_ptr(int retval)
 int main()
 {
     char * heap = alloc_protected_space(HEAP_SIZE);
+    char * stck = alloc_protected_space(STCK_SIZE);
 
     hptr = (long *) heap;
+    sptr = (long *) stck;
+    root = (long *) stck;
 
     print_ptr(scheme_entry());
 
     free_protected_space(heap, HEAP_SIZE);
+    free_protected_space(heap, STCK_SIZE);
     
     return 0;
 }

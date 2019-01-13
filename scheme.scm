@@ -730,6 +730,8 @@
   (emit "declare void @hptr_vector_set(i64, i64, i64) #1")
   (emit "declare void @hptr_vector_ref(i64, i64, i64*)#1")
   (emit "declare i64  @hptr_vector_mak(i64, i64)      #1")
+  (emit "declare void @stack_pop()                    #1")
+  (emit "declare void @stack_psh(i64)                 #1")
   )
 
 ;; fixnum - last two bits 0, mask 11b
