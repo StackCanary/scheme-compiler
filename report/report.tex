@@ -1,0 +1,93 @@
+\documentclass{article}
+
+\title{SH Project - A Scheme Compiler}
+\date{14/01/2018}
+\author{150008859}
+
+\setlength{\parskip}{1em}
+\setlength{\parindent}{0em}
+
+\usepackage{listings}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{subfig}
+\usepackage{booktabs}
+
+\begin{document}
+\maketitle
+\newpage
+
+\section{Introduction}
+
+The aim of this SH Project was to implement a compiler for a subset of Scheme detailed in the paper ``An incremental approach to Compiler Construction'', in which the author briefly describes its components across 24 sections. The compiler is written in Scheme coupled with a runtime in C.
+
+Originally, the paper targets x86, but my project targets llvm IR instead. This allows me take a more modern approach as the paper is dated from 2006, to take advantage of many of the features that are bundled with llvm including its optimiser and it's ability to compile into many other architectures. 
+
+\section{Project Layout}
+
+The project is organised across many files.
+
+\begin{verbatim}
+ - scheme.scm          - The source code of the compiler written in Scheme.
+ - runtime.c           - The C runtime.
+ - run.scm             - The code for running the compiler.
+ - test_driver.scm     - The testing framework.
+ - Makefile            - A makefile for compiling programs and running tests. 
+\end{verbatim}
+
+% Talk about the runtime, the scheme_entry function and the emition of llvm and linking the object files
+
+\section{Test Framework}
+
+Due to the incremental nature of the project, the first task was to construct a test framework. This involved implement a procedure ``test'' which accepts a symbolic expression, compiles the s-expression into an executable binary and compares the result produced by the binary with the expected answer.
+
+This allowed implementing a feature and immediately being able to verify the computation.
+
+% Explain how it works, e.g. makefile and new directory. 
+
+\section{Immediate Values}
+
+The first task was to implement immediate values. Immediates constitute of integers, characters, booleans and the empty list. During the compilation process, immediates are simply packed and emitted. 
+
+Immediate values can be represented by a tag and a mask. Table~\ref{tab:immediates} shows the masks, tags and sizes of the packed immediates. 
+
+\begin{table}[ht]
+  \centering
+\begin{tabular}{ l c c c }
+  \toprule
+  Type & Mask & Tag & Size \\ \hline
+  \midrule
+  Integer & 0x03 & 0x00 & 30 bits  \\
+  Character & 0xFF & 0x0F & 24 bits  \\
+  Boolean & 0x7F & 0x1F & 1 bit \\
+  Empty List & 0xFF & 0x2F & 0 bits \\
+  \bottomrule
+\end{tabular}
+\caption{Masks, tags and sizes of immediate values.} \label{tab:immediates}
+\end{table}
+
+To supplement the immediate values, the runtime was extended to display the immediate value returned by the program. 
+
+\section{Primitives}
+
+The compiler was then extended by adding unary primitives. Unary primitives are procedures which accept a single argument. A framework was constructed for detecting and emitting primitives which accept any number of arguments. 
+
+\begin{thebibliography}{5}
+
+\bibitem{wiki} 
+Wikipedia
+\\\texttt{https://wikipedia.org}
+
+\bibitem{inc}
+An Incremental Approach to Compiler Construction.
+\\\texttt{http://scheme2006.cs.uchicago.edu/11-ghuloum.pdf}
+
+\bibitem{}
+A similar project based on the paper, but targets x86.
+\\\texttt{https://github.com/namin/inc}
+
+\end{thebibliography}  
+
+\end{document}
+
