@@ -111,7 +111,7 @@ The compiler was then extended by adding unary primitives. Unary primitives are 
  }
 \end{verbatim}
 
-These unary  primitives can be combined to form some semblance of a program.
+These unary primitives can be combined to form some semblance of a program.
 
 \begin{verbatim}
 >(add1 (sub1 42))
@@ -143,13 +143,44 @@ These unary  primitives can be combined to form some semblance of a program.
 
 \section{Datastructures and the Heap}
 
-The runtime was extended by adding a heap. A contigious region of memory is allocated to store runtime objects that cannot be represented by an immediate. 
+Pairs, Vectors, Closures and Strings are datastructures that cannot be represented by a single fixed width number. Hence, the runtime was extended by adding a heap. A contigious region of memory is allocated to store runtime objects that cannot be represented by an immediate.
+
+The objects are constructed on the heap and a pointer to them is emitted. By aligning the allocated objects to a multiple of 8, the last 3 bits of a pointer can be used to store a tag, these can be found in Table~\ref{tab:datastructures}.
+
+\begin{table}[ht]
+  \centering
+\begin{tabular}{ l c c }
+  \toprule
+  Type & Mask & Tag  \\ \hline
+  \midrule
+  Pairs  & 0x07 & 0x01 \\
+  Closures & 0x07 & 0x02 \\
+  Vectors & 0x07 & 0x05 \\
+  Strings & 0x07 & 0x06 \\
+  \bottomrule
+\end{tabular}
+\caption{Masks and Tags of datastructures.} \label{tab:datastructures}
+\end{table}
 
 \subsection{Pairs}
 
+The primitives required for the construction of pairs include pair?, cons, car and cdr.
+
 \subsection{Vectors}
 
+The primitives required for the construction of pairs include vector?, make-vector, vector-ref and vector-set!. 
+
+\subsection{Closures}
+
+A closure represents a closed lambda expression and is constructed during the closure conversion code transformation step. It is an Object that is also constructed on the heap.
+
+\subsection{Closures}
+
+Strings are currently unimplemented. 
+
 \section{Assignment}
+
+
 
 \subsection{Code Transformation}
 
