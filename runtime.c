@@ -164,7 +164,7 @@ int main()
     print_ptr(scheme_entry());
 
     free_protected_space(heap, HEAP_SIZE);
-    free_protected_space(heap, STCK_SIZE);
+    free_protected_space(stck, STCK_SIZE);
     
     return 0;
 }

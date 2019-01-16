@@ -29,14 +29,15 @@ Originally, the paper targets x86, but my project targets llvm IR instead. This 
 The project is organised across many files.
 
 \begin{verbatim}
- - scheme.scm          - The source code of the compiler written in Scheme.
- - runtime.c           - The C runtime.
- - run.scm             - The code for running the compiler.
- - test_driver.scm     - The testing framework.
- - Makefile            - A makefile for compiling programs and running tests. 
+ - scheme.scm       - The Scheme compiler.
+ - runtime.c        - The complimentary runtime.
+ - run.scm          - Reading file contents and running compiler.
+ - test_driver.scm  - The testing framework.
+ - Makefile         - A Makefile to drive compilation and tests. 
 \end{verbatim}
 
 % Talk about the runtime, the scheme_entry function and the emition of llvm and linking the object files
+
 
 \section{Test Framework}
 
@@ -44,13 +45,15 @@ Due to the incremental nature of the project, the first task was to construct a 
 
 This allowed implementing a feature and immediately being able to verify the computation.
 
-% Explain how it works, e.g. makefile and new directory. 
+% Explain how it works, e.g. makefile and new directory.
+
+
 
 \section{Immediate Values}
 
-The first task was to implement immediate values. Immediates constitute of integers, characters, booleans and the empty list. During the compilation process, immediates are simply packed and emitted. 
+This section discusses the task of implementing immediate values which constitute of integers, characters, booleans and the empty list. It also gives an insight at the code emitted by the compiler. During the compilation process, immediates are packed into a ``value and tag form'' and returned.
 
-Immediate values can be represented by a tag and a mask. Table~\ref{tab:immediates} shows the masks, tags and sizes of the packed immediates. 
+Table~\ref{tab:immediates} shows the masks, tags and sizes of the packed immediates. For example, the value 42 is shifted left twice to produce the packed value 168. 
 
 \begin{table}[ht]
   \centering
@@ -67,11 +70,90 @@ Immediate values can be represented by a tag and a mask. Table~\ref{tab:immediat
 \caption{Masks, tags and sizes of immediate values.} \label{tab:immediates}
 \end{table}
 
+The following example demonstrates how the immediate value ``42'' is compiled. 
+
+\begin{verbatim}
+>42
+
+ define i64 @scheme_entry()   /* Header 
+ {                            
+   entry:
+   %tmp = alloca i64              ..  */
+
+   store i64 168, i64* %tmp   /* Body */ 
+
+   %ret = load i64, i64* %tmp /* Footer
+   ret i64 %ret                   
+ }                                ..  */
+\end{verbatim}
+
+As there are no registers or an operand stack in llvm, a variable representing a memory location named ``tmp'' is designated as the return value holder similar to how the ``eax'' register holds the return address in the cdecl calling convention. The variable is allocated in the header. At the end of the program, the value stored in tmp is returned. In the runtime, the ``scheme\_entry'' function is called and displays the value returned. 
+
 To supplement the immediate values, the runtime was extended to display the immediate value returned by the program. 
 
 \section{Primitives}
 
-The compiler was then extended by adding unary primitives. Unary primitives are procedures which accept a single argument. A framework was constructed for detecting and emitting primitives which accept any number of arguments. 
+The compiler was then extended by adding unary primitives. Unary primitives are procedures which are natively defined in the environment and accept a single argument. Arguments are emitted first and the result stored in temporary variables. 
+
+\begin{verbatim}
+>(add1 42)
+
+ define i64 @scheme_entry()     /* Header
+ {
+   entry:
+   %tmp = alloca i64                    .. */
+   store i64 168, i64* %tmp     /* Emit 42 */ 
+   %var10 = load i64, i64* %tmp 
+   %var11 = add i64 %var10, 4   /* Add   1 */
+   store i64 %var11, i64* %tmp  
+   %ret = load i64, i64* %tmp   /* Footer 
+   ret i64 %ret                         .. */
+ }
+\end{verbatim}
+
+These unary  primitives can be combined to form some semblance of a program.
+
+\begin{verbatim}
+>(add1 (sub1 42))
+
+ define i64 @scheme_entry()
+ {
+   entry: 
+   %tmp = alloca i64
+   store i64 168, i64* %tmp
+   %var12 = load i64, i64* %tmp
+   %var13 = sub i64 %var12, 4
+   store i64 %var13, i64* %tmp
+   %var10 = load i64, i64* %tmp
+   %var11 = add i64 %var10, 4
+   store i64 %var11, i64* %tmp
+   %ret = load i64, i64* %tmp
+   ret i64 %ret
+ }
+\end{verbatim}
+
+
+\section{Let and the Local Variables}
+
+\section{Conditionals}
+
+\section{Lambdas}
+
+\subsection{Code Transformation}
+
+\section{Datastructures and the Heap}
+
+The runtime was extended by adding a heap. A contigious region of memory is allocated to store runtime objects that cannot be represented by an immediate. 
+
+\subsection{Pairs}
+
+\subsection{Vectors}
+
+\section{Assignment}
+
+\subsection{Code Transformation}
+
+
 
 \begin{thebibliography}{5}
 
