@@ -218,9 +218,9 @@ void print_ptr(long retval)
     else if is_bool(retval) { printf("%s", retval >> 7 ? "#t" : "#f"); }
     else if is_null(retval) { printf("'()");                           }
     else if is_pair(retval) { show_pair(retval);                       }
-    else if is_clsr(retval) { printf("Closure at %p", retval);         }
+    else if is_clsr(retval) { printf("Procedure at %p", retval);         }
     else if is_vect(retval) { show_vect(retval);                       }
-    else                    { printf("Unknown 0x%x",  retval);         }
+    else                    { printf("Unrecognised Value 0x%x",  retval);         }
 }
 
 int main()
