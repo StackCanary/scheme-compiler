@@ -96,6 +96,11 @@ long hptr_vector_mak(long size, long value)
     return retval;
 }
 
+long hptr_vector_len(long vectr)
+{
+    long *p = (long *) (vectr & ~7); return p[0] / 4;
+}
+
 void hptr_vector_set(long vectr, long index, long  val)
 {
     long *p = (long *) (vectr & ~7);
@@ -140,16 +145,82 @@ void free_protected_space(char* p, int size)
 
 
 
-void print_ptr(int retval)
+#define is_fnum(retval) ((retval &  0x03) == 0   )
+#define is_char(retval) ((retval &  0xFF) == 0x0F)
+#define is_bool(retval) ((retval &  0x7F) == 0x1F)
+#define is_null(retval)  (retval == 0x2F)
+#define is_pair(retval) ((retval &  0x07) == 1   )
+#define is_clsr(retval) ((retval &  0x07) == 2   )
+#define is_vect(retval) ((retval &  0x07) == 5   )
+
+#define is_value(retval) (is_fnum(retval) || is_char(retval) || is_bool(retval) || is_null(retval))
+#define is_point(retval) (is_pair(retval) || is_clsr(retval) || is_vect(retval))
+
+void print_ptr(long ret);
+
+void show_pair(long ptr)
 {
-    if      ((retval &  0x03) == 0   ) { printf("%li\n", retval >> 2);              }
-    else if ((retval &  0xFF) == 0x0F) { printf("%c\\%c\n", '#', retval >> 8);      }
-    else if ((retval &  0x7F) == 0x1F) { printf("%s\n", retval >> 7 ? "#t" : "#f"); }
-    else if  (retval == 0x2F)          { printf("'()\n");                           }
-    else if ((retval &  0x07) == 1   ) { printf("Pair at %p\n",    retval);         }
-    else if ((retval &  0x07) == 2   ) { printf("Closure at %p\n", retval);         }
-    else if ((retval &  0x07) == 5   ) { printf("Vector at %p\n",  retval);         }
-    else                               { printf("Unknown 0x%x\n",  retval);         }
+    
+    printf("(");
+
+    while(1)
+    {
+    
+    long car = hptr_car(ptr);
+    long cdr = hptr_cdr(ptr);
+
+    print_ptr(car); printf(" ");
+
+    if (is_value(cdr))
+    {
+	if (!is_null(cdr))
+	{
+	    printf(". "); print_ptr(cdr);
+	}
+	
+	break;
+    }
+
+    if (is_pair(cdr))
+    {
+	ptr = cdr;
+    }
+
+    }
+
+    printf(")");
+    
+}
+
+void show_vect(long ptr)
+{
+    long len = hptr_vector_len(ptr);
+    long tmp = 0;
+
+    printf("(");
+
+    for (int i = 0; i < len; i++)
+    {
+	hptr_vector_ref(ptr, i, &tmp); print_ptr(tmp);
+
+	if (i < len - 1)
+	    printf(" ");
+    }
+
+    printf(")");
+}
+
+
+void print_ptr(long retval)
+{
+    if      is_fnum(retval) { printf("%li", retval >> 2);              }
+    else if is_char(retval) { printf("%c\\%c", '#', retval >> 8);      }
+    else if is_bool(retval) { printf("%s", retval >> 7 ? "#t" : "#f"); }
+    else if is_null(retval) { printf("'()");                           }
+    else if is_pair(retval) { show_pair(retval);                       }
+    else if is_clsr(retval) { printf("Closure at %p", retval);         }
+    else if is_vect(retval) { show_vect(retval);                       }
+    else                    { printf("Unknown 0x%x",  retval);         }
 }
 
 int main()
@@ -161,7 +232,7 @@ int main()
     sptr = (long *) stck;
     root = (long *) stck;
 
-    print_ptr(scheme_entry());
+    print_ptr(scheme_entry()); printf("\n");
 
     free_protected_space(heap, HEAP_SIZE);
     free_protected_space(stck, STCK_SIZE);

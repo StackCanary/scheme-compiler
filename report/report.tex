@@ -164,17 +164,40 @@ The objects are constructed on the heap and a pointer to them is emitted. By ali
 
 \subsection{Pairs}
 
-The primitives required for the construction of pairs include pair?, cons, car and cdr.
+The primitives required for the construction of pairs include ``pair?'', ``cons'', ``car'' and ``cdr''. A pair is a collection of two objects. If the 2nd item in a pair is a list, then the pair is referred to as a list.
+
+Pairs are constructed using the ``cons'' primitive which increases the heap pointer twice and copies the elements of the pair into the new cells which have been allocated. A list constructed using pairs is equivalent to a linked list. The ``car'' and ``cdr'' primitives return the first and second elements.
+
+\begin{table}[ht]
+  \centering
+\begin{tabular}{ l c }
+  \toprule
+  Primcall & Description \\ \hline
+  \midrule
+  pair? & 0x07 \\
+  cons & 0x07 \\
+  car & 0x07 \\
+  cdr & 0x07 \\
+  \bottomrule
+\end{tabular}
+\caption{Masks and Tags of datastructures.} \label{tab:datastructures}
+\end{table}
+
+
+% TODO Make Diagram
+% TODO Show Code Emitted
 
 \subsection{Vectors}
 
-The primitives required for the construction of pairs include vector?, make-vector, vector-ref and vector-set!. 
+The primitives required for the construction of pairs include ``vector?'', ``make-vector'', ``vector-ref'' and ``vector-set!''.
+
+
 
 \subsection{Closures}
 
 A closure represents a closed lambda expression and is constructed during the closure conversion code transformation step. It is an Object that is also constructed on the heap.
 
-\subsection{Closures}
+\subsection{Strings}
 
 Strings are currently unimplemented. 
 
@@ -196,9 +219,13 @@ Wikipedia
 An Incremental Approach to Compiler Construction.
 \\\texttt{http://scheme2006.cs.uchicago.edu/11-ghuloum.pdf}
 
-\bibitem{}
+\bibitem{namin}
 A similar project based on the paper, but targets x86.
 \\\texttt{https://github.com/namin/inc}
+
+\bibitem{tutorial}
+An extended tutorial 
+\\\texttt{http://web.archive.org/web/20110310113240/http://www.cs.indiana.edu/~aghuloum/compilers-tutorial-2006-09-16.pdf}
 
 \end{thebibliography}  
 
