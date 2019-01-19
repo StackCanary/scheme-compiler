@@ -197,7 +197,7 @@ void show_vect(long ptr)
     long len = hptr_vector_len(ptr);
     long tmp = 0;
 
-    printf("(");
+    printf("#(");
 
     for (int i = 0; i < len; i++)
     {

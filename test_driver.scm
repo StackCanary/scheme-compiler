@@ -27,6 +27,10 @@
   (lambda ()
     (read (open-file "tests/program.out" "r"))))
 
+(define get_prog_as_string
+  (lambda ()
+    (read-line (open-file "tests/program.out" "r"))))
+
 (define rmv_prog
   (lambda ()
     (system "cd tests; rm program.out >/dev/null 2>&1")))
@@ -45,7 +49,22 @@
     (rmv_prog)
     (end_test)
     (display prog_data)
+    (display " -> ")
     (eqv? prog_data expt)
+    ))
+
+(define test-string-output
+  (lambda (expr expt)
+    (define prog_data '())
+    (let ((port (open-file "tests/my_test.scm" "w"))) (write_test_to_file_port port expr) (close-port port))
+    (beg_test)
+    (run_prog)
+    (set! prog_data (get_prog_as_string))
+    (rmv_prog)
+    (end_test)
+    (display prog_data)
+    (display " -> ")
+    (equal? prog_data expt)
     ))
 
 (prep)
@@ -80,6 +99,11 @@
                  (f1 (code (y) (x) (funcall (closure f0 x y) ))))
                 (let ((x 5)) (funcall (closure f1 x) 3) ))" 8)
  ) (newline)
+
+(display (test-string-output "(cons 3 4)" "(3 . 4)")) (newline)
+(display (test-string-output "(cons 3 (cons 4 5))" "(3 4 . 5)")) (newline)
+(display (test-string-output "(make-vector 5 5)" "#(5 5 5 5 5)")) (newline)
+
 
 (last)
 
