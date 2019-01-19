@@ -39,6 +39,7 @@
 	 [(make-vector)  #t]
 	 [(vector-set!)  #t]
 	 [(vector-ref)   #t]
+	 [(make-string)  #t]
 	 [ else          #f])))
 
 (define (is-labelled? expr tag) (and (pair? expr) (eqv? (car expr) tag)))
@@ -87,6 +88,7 @@
     [(make-vector)  make-vector-primcall-emitter]
     [(vector-set!)  vector-set-primcall-emitter]
     [(vector-ref)   vector-ref-primcall-emitter]
+    [(make-string)  make-string-primcall-emitter]
     ))
 
 ;;  not,  boolean?,
@@ -730,6 +732,7 @@
   (emit "declare void @hptr_vector_set(i64, i64, i64) #1")
   (emit "declare void @hptr_vector_ref(i64, i64, i64*)#1")
   (emit "declare i64  @hptr_vector_mak(i64, i64)      #1")
+  (emit "declare i64  @hptr_string_mak(i64, i64)      #1")
   (emit "declare void @stack_pop()                    #1")
   (emit "declare void @stack_psh(i64)                 #1")
   )
@@ -784,11 +787,6 @@
     (emit "%~a = call i64 @hptr_cdr(i64 %~a)" label2 label1)
     (emit "store i64 %~a, i64* %tmp"  label2)))
 
-;; The String and its primitives
-
-
-
-
 ;; The Vector and its primitives vector?, vector, vector-set, vector-ref
 
 ;; Create Vector of Length arg1, Populated wtih arg2
@@ -826,6 +824,22 @@
     (emit "call void @hptr_vector_ref(i64 %~a, i64 %~a, i64* %tmp)" label1 label2)
     )
   )
+
+;; The String and its primitives string?, make-string
+
+(define (make-string-primcall-emitter env arg1 arg2)
+  (let ((label1 (get-label)) (label2 (get-label)) (label3 (get-label)))
+    (emit-expr arg1 env)
+    (emit "%~a = load i64, i64* %tmp" label1)
+    (emit-expr arg2 env)
+    (emit "%~a = load i64, i64* %tmp" label2)
+    (emit "%~a = call i64 @hptr_string_mak(i64 %~a, i64 %~a)" label3 label1 label2)
+    (emit "store i64 %~a, i64* %tmp"  label3)
+    )
+  )
+
+
+
 
 
 

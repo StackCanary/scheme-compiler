@@ -96,6 +96,20 @@ long hptr_vector_mak(long size, long value)
     return retval;
 }
 
+long hptr_string_mak(long size, long value)
+{
+    long retval = hptr_ptr(6);
+
+    hptr_inc(size);
+
+    size = size / 4;
+
+    for (int i = 0; i < size; i++)
+	hptr_inc(value);
+
+    return retval;
+}
+
 long hptr_vector_len(long vectr)
 {
     long *p = (long *) (vectr & ~7); return p[0] / 4;
@@ -152,9 +166,10 @@ void free_protected_space(char* p, int size)
 #define is_pair(retval) ((retval &  0x07) == 1   )
 #define is_clsr(retval) ((retval &  0x07) == 2   )
 #define is_vect(retval) ((retval &  0x07) == 5   )
+#define is_strn(retval) ((retval &  0x07) == 6   )
 
 #define is_value(retval) (is_fnum(retval) || is_char(retval) || is_bool(retval) || is_null(retval))
-#define is_point(retval) (is_pair(retval) || is_clsr(retval) || is_vect(retval))
+#define is_point(retval) (is_pair(retval) || is_clsr(retval) || is_vect(retval) || is_strn(retval)) 
 
 void print_ptr(long ret);
 
@@ -210,6 +225,20 @@ void show_vect(long ptr)
     printf(")");
 }
 
+void show_strn(long ptr)
+{
+    long len = hptr_vector_len(ptr);
+    long tmp = 0;
+
+    printf("\"");
+
+    for (int i = 0; i < len; i++)
+    {
+	hptr_vector_ref(ptr, i, &tmp); printf("%c", tmp >> 8);
+    }
+
+    printf("\"");
+}
 
 void print_ptr(long retval)
 {
@@ -220,6 +249,7 @@ void print_ptr(long retval)
     else if is_pair(retval) { show_pair(retval);                       }
     else if is_clsr(retval) { printf("Procedure at %p", retval);         }
     else if is_vect(retval) { show_vect(retval);                       }
+    else if is_strn(retval) { show_strn(retval);                       }
     else                    { printf("Unrecognised Value 0x%x",  retval);         }
 }
 

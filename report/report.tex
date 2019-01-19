@@ -180,9 +180,16 @@ Pairs are constructed using the ``cons'' primitive which increases the heap poin
   cdr & 0x07 \\
   \bottomrule
 \end{tabular}
-\caption{Masks and Tags of datastructures.} \label{tab:datastructures}
+\caption{Masks and Tags of datastructures.} \label{tab:primcalls}
 \end{table}
 
+\begin{verbatim}
+;; Construct an improper list
+
+>  (cons 3 (cons 4 5))
+
+>> (3 4 . 5)
+\end{verbatim}
 
 % TODO Make Diagram
 % TODO Show Code Emitted
@@ -191,7 +198,13 @@ Pairs are constructed using the ``cons'' primitive which increases the heap poin
 
 The primitives required for the construction of pairs include ``vector?'', ``make-vector'', ``vector-ref'' and ``vector-set!''.
 
+\begin{verbatim}
+;; Produce a Vector of size 3 populated with character A.
 
+>  (make-vector 3 #\A) 
+
+>> #(#\A #\A #\A)
+\end{verbatim}
 
 \subsection{Closures}
 
