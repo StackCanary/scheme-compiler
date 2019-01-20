@@ -135,7 +135,103 @@ These unary primitives can be combined to form some semblance of a program.
 
 \section{Let and the Local Variables}
 
+The let primitive allows us to bind an expression to a symbol in a body. 
+
+\begin{verbatim}
+
+(let ((var1 exp1)      /* Bindings
+      (var2 exp2) ..)     ..       */
+         body ..)      /* Body     */   
+
+\end{verbatim}
+
+A simple example shows the interal workings of the let primitive.
+
+\begin{verbatim}
+
+>(let ((x 1) (y 2)) (add x y)) 
+
+define i64 @scheme_entry()       /* Header
+{                    
+entry: 
+%tmp = alloca i64                                 .. */
+
+// Bindings       
+
+store i64 4, i64* %tmp           /* Emit 1 into        
+%var10 = load i64, i64* %tmp     symbol x (var10) .. */
+
+store i64 8, i64* %tmp           /* Emit 2 into           
+%var11 = load i64, i64* %tmp     symbol y (var11) .. */
+
+// Body
+
+store i64 %var11, i64* %tmp      /* Load x      
+%var12 = load i64, i64* %tmp                      .. */
+
+store i64 %var10, i64* %tmp      /* Load y
+%var13 = load i64, i64* %tmp                      .. */
+
+%var14 = add i64 %var13, %var12  /* Addition
+store i64 %var14, i64* %tmp                       .. */
+
+%ret = load i64, i64* %tmp       /* Footer
+ret i64 %ret                                  .. */
+}
+
+\end{verbatim}
+
+The compiler was extended by an environment, a dictionary which maps symbols to llvm variable names ([x var10], [y, var11], ..). Ordinarily, if we had used x86, we would have had to construct stack frames, manage the stack pointer and map symbols to offsets from current frame pointer. Local variables in llvm are represented by llvm variables. Binding a variable emits the right hand side expression and stores the value into a variable.
+
+\begin{verbatim}
+ store i64 4, i64* %tmp        /* Emit 1 */
+ %var10 = load i64, i64* %tmp  /* Load into symbol x (var10) */  
+\end{verbatim}
+
+ In the body of the expression, the environment is available. When a symbol is referenced, it's value is emitted.
+ 
+\begin{verbatim}
+store i64 %var11, i64* %tmp     /* Emit x (var11)     
+%var12 = load i64, i64* %tmp                   .. */
+\end{verbatim}
+
+Slightly more complex programs can be constructed in which we can store the result of an expression into symbols.
+
+\section{Let*}
+
+The let* primitive is identical to the let primitive, except the variable bindings can be referenced in consecutive bindings. The syntax is identical. 
+
+\begin{verbatim}
+
+(let* ((var1 exp1)      /* Bindings
+       (var2 var1)     
+       (var3 var2))      ..         */
+          body ..)      /* Body     */   
+
+\end{verbatim}
+
+The let* primitive can be code transformed into nested let primitives and are implemented as such. 
+
+\begin{verbatim}
+
+(let ((var1 exp1))
+ (let ((var2 var1))
+  (let ((var3 var2))
+   body ..))) 
+ 
+\end{verbatim}
+
 \section{Conditionals}
+
+The conditional primitives include if and cond.
+
+\begin{verbatim}
+
+(if consequent alternative)
+
+\end{verbatim}
+
+A short example shows the implementation.
 
 \section{Lambdas}
 
@@ -210,7 +306,7 @@ The primitives required for the construction of pairs include ``vector?'', ``mak
   (vector-set! vec ind val) & Sets vec[ind] = val. \\
   \bottomrule
 \end{tabular}
-\caption{Primitives related to Pairs.} \label{tab:pairs}
+\caption{Primitives related to Pairs.} \label{tab:vectors}
 \end{table}
 
 \begin{verbatim}
@@ -227,7 +323,7 @@ A closure represents a closed lambda expression and is constructed during the cl
 
 \subsection{Strings}
 
-Strings are represented in the same manner as vectors, the string's length is stored. The characters are stored in the packed form sequentally after.
+Strings are stored in the same manner as vectors, the string's length is stored. This is followed by the characters which are stored sequentially after. 
 
 \begin{verbatim}
 >  (make-string 5 #\A)
@@ -259,7 +355,7 @@ A similar project based on the paper, but targets x86.
 
 \bibitem{tutorial}
 An extended tutorial 
-\\\texttt{http://web.archive.org/web/20110310113240/http://www.cs.indiana.edu/~aghuloum/compilers-tutorial-2006-09-16.pdf}
+\\\texttt{http://www.cs.indiana.edu/~aghuloum/compilers-tutorial-2006-09-16.pdf}
 
 \end{thebibliography}  
 
