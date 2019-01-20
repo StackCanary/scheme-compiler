@@ -170,17 +170,17 @@ Pairs are constructed using the ``cons'' primitive which increases the heap poin
 
 \begin{table}[ht]
   \centering
-\begin{tabular}{ l c }
+\begin{tabular}{ l l }
   \toprule
   Primcall & Description \\ \hline
   \midrule
-  pair? & 0x07 \\
-  cons & 0x07 \\
-  car & 0x07 \\
-  cdr & 0x07 \\
+  (pair? p) & Returns true if p is a Pair.   \\
+  (cons a b) & Constructs (a . b)  \\
+  (car '(a . b)) & Returns a \\
+  (cdr '(a . b)) & Returns b \\
   \bottomrule
 \end{tabular}
-\caption{Masks and Tags of datastructures.} \label{tab:primcalls}
+\caption{Primitives related to Pairs.} \label{tab:pairs}
 \end{table}
 
 \begin{verbatim}
@@ -198,6 +198,21 @@ Pairs are constructed using the ``cons'' primitive which increases the heap poin
 
 The primitives required for the construction of pairs include ``vector?'', ``make-vector'', ``vector-ref'' and ``vector-set!''.
 
+\begin{table}[ht]
+  \centering
+\begin{tabular}{ l l }
+  \toprule
+  Primcall & Description \\ \hline
+  \midrule
+  (vector? vec) & Returns true if vec is a Vector.. \\
+  (make-vector len val) & Constructs \#(val, val, ..) of size len. \\
+  (vector-ref vec ind) & Accesses vec[ind] \\
+  (vector-set! vec ind val) & Sets vec[ind] = val. \\
+  \bottomrule
+\end{tabular}
+\caption{Primitives related to Pairs.} \label{tab:pairs}
+\end{table}
+
 \begin{verbatim}
 ;; Produce a Vector of size 3 populated with character A.
 
@@ -212,7 +227,13 @@ A closure represents a closed lambda expression and is constructed during the cl
 
 \subsection{Strings}
 
-Strings are currently unimplemented. 
+Strings are represented in the same manner as vectors, the string's length is stored. The characters are stored in the packed form sequentally after.
+
+\begin{verbatim}
+>  (make-string 5 #\A)
+>> "AAAAA"
+
+\end{verbatim}
 
 \section{Assignment}
 

@@ -104,7 +104,6 @@
 (display (test-string-output "(cons 3 (cons 4 5))" "(3 4 . 5)")) (newline)
 (display (test-string-output "(make-vector 5 5)" "#(5 5 5 5 5)")) (newline)
 
-
 (display (test-string-output "(make-string 5 #\\A)"  "\"AAAAA\"")) (newline)
 
 
