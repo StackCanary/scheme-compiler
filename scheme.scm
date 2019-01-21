@@ -32,6 +32,9 @@
 	 [(mul)          #t]
 	 [(div)          #t]
 	 [(if)           #t]
+	 [(lt)           #t]
+	 [(eq)           #t]
+	 [(gt)           #t]
 	 [(pair?)        #t]
 	 [(cons)         #t]
 	 [(car)          #t]
@@ -82,6 +85,9 @@
     [(mul)          mul-primcall-emitter]
     [(div)          div-primcall-emitter]
     [(if)           if-primcall-emitter]
+    [(lt)           lt-primcall-emitter]
+    [(eq)           eq-primcall-emitter]
+    [(gt)           gt-primcall-emitter]
     [(cons)         cons-primcall-emitter]
     [(car)          car-primcall-emitter]
     [(cdr)          cdr-primcall-emitter]
@@ -207,7 +213,7 @@
     (emit-expr arg env)
     (emit "%~a = load i64, i64* %tmp" label1)
     (emit "%~a = and i64 %~a, 127"    label2 label1)
-    (emit "%~a = icmp eq i64 %~a, 31" label3 label2)
+    (emit "%~a = icmp eq i64 %~a, 31" label3 label2) 
     (emit "%~a = zext i1 %~a to i64"  label4 label3)
     (emit "%~a = shl i64 %~a, 8"      label5 label4)
     (emit "%~a = or i64 %~a, 31"      label6 label5)
@@ -282,6 +288,71 @@
     (emit "br label %~a " L3)
     (emit-label L3)
     ))
+
+(define (lt-primcall-emitter env arg1 arg2)
+  (let ((label1 (get-label))
+	(label2 (get-label))
+	(label3 (get-label))
+	(label4 (get-label))
+	(label5 (get-label))
+	(label6 (get-label))
+	)
+    (emit-expr arg2 env)
+    (emit "%~a = load i64, i64* %tmp" label1)
+    (emit-expr arg1 env)
+    (emit "%~a = load i64, i64* %tmp" label2)
+    (emit "%~a = icmp slt i64 %~a, %~a" label3 label2 label1) 
+    (emit "%~a = zext i1 %~a to i64"  label4 label3)
+    (emit "%~a = shl i64 %~a, 8"      label5 label4)
+    (emit "%~a = or i64 %~a, 31"      label6 label5)
+    (emit "store i64 %~a, i64* %tmp"  label6)
+  ))
+
+(define (eq-primcall-emitter env arg1 arg2)
+  (let ((label1 (get-label))
+	(label2 (get-label))
+	(label3 (get-label))
+	(label4 (get-label))
+	(label5 (get-label))
+	(label6 (get-label))
+	)
+    (emit-expr arg2 env)
+    (emit "%~a = load i64, i64* %tmp" label1)
+    (emit-expr arg1 env)
+    (emit "%~a = load i64, i64* %tmp" label2)
+    (emit "%~a = icmp eq i64 %~a, %~a" label3 label2 label1) 
+    (emit "%~a = zext i1 %~a to i64"  label4 label3)
+    (emit "%~a = shl i64 %~a, 8"      label5 label4)
+    (emit "%~a = or i64 %~a, 31"      label6 label5)
+    (emit "store i64 %~a, i64* %tmp"  label6)
+    ))
+
+(define (gt-primcall-emitter env arg1 arg2)
+  (let ((label1 (get-label))
+	(label2 (get-label))
+	(label3 (get-label))
+	(label4 (get-label))
+	(label5 (get-label))
+	(label6 (get-label))
+	)
+    (emit-expr arg2 env)
+    (emit "%~a = load i64, i64* %tmp" label1)
+    (emit-expr arg1 env)
+    (emit "%~a = load i64, i64* %tmp" label2)
+    (emit "%~a = icmp sgt i64 %~a, %~a" label3 label2 label1) 
+    (emit "%~a = zext i1 %~a to i64"  label4 label3)
+    (emit "%~a = shl i64 %~a, 8"      label5 label4)
+    (emit "%~a = or i64 %~a, 31"      label6 label5)
+    (emit "store i64 %~a, i64* %tmp"  label6)
+  ))
+
+(define (and-primcall-emitter env arg1 arg2)
+  '()
+  )
+
+(define (or-primcall-emitter env arg1 arg2)
+  '()
+  )
 
 (define (emit-begin x env)
   (cond

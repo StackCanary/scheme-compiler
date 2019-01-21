@@ -195,11 +195,13 @@ store i64 %var11, i64* %tmp     /* Emit x (var11)
 %var12 = load i64, i64* %tmp                   .. */
 \end{verbatim}
 
-Slightly more complex programs can be constructed in which we can store the result of an expression into symbols.
+Slightly more complex programs can be constructed in which we can store the result of an expression into symbols. 
 
 \section{Let*}
 
-The let* primitive is identical to the let primitive, except the variable bindings can be referenced in consecutive bindings. The syntax is identical. 
+The let* primitive is identical to the let primitive, except the variable bindings can be referenced in consecutive bindings. The syntax is identical.
+
+The following example illustrates a use of the let* primitive. 
 
 \begin{verbatim}
 
@@ -210,7 +212,7 @@ The let* primitive is identical to the let primitive, except the variable bindin
 
 \end{verbatim}
 
-The let* primitive can be code transformed into nested let primitives and are implemented as such. 
+The let* primitive can be code transformed into nested let primitives and are implemented as such. The following example shows the transformed version.
 
 \begin{verbatim}
 
@@ -219,6 +221,16 @@ The let* primitive can be code transformed into nested let primitives and are im
   (let ((var3 var2))
    body ..))) 
  
+\end{verbatim}
+
+\section{Begin}
+
+Multiple s-expressions can be chained sequentially through use of the Begin primitive. The return value of the final expression is returned. 
+
+\begin{verbatim}
+
+(begin exp1 exp2 ...) 
+
 \end{verbatim}
 
 \section{Conditionals}
@@ -232,6 +244,16 @@ The conditional primitives include if and cond.
 \end{verbatim}
 
 A short example shows the implementation.
+
+\begin{verbatim}
+
+(if consequent alternative)
+
+\end{verbatim}
+
+\begin{verbatim}
+
+\end{verbatim}
 
 \section{Lambdas}
 
