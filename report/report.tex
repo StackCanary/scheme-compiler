@@ -38,6 +38,8 @@ The project is organised across many files.
 
 % Talk about the runtime, the scheme_entry function and the emition of llvm and linking the object files
 
+\subsection{Runtime}
+
 
 \section{Test Framework}
 
@@ -326,8 +328,6 @@ The variable x is free in the body of the second lambda expression.
 
 Instead, a lambda compiles into a ``closure'' which is a datastructure that contains a pointer to a function and the values of its free variables.
 
-
-
 \subsection{Code Transformation}
 
 In order to accomplish this, the lambda expression is transformed into an intermediate forms. Table~\ref{tab:lambda_intermediate} shows the intermediate forms. 
@@ -340,8 +340,8 @@ In order to accomplish this, the lambda expression is transformed into an interm
   \midrule
   (closure lvar fvar ... ) & Emits a pointer to a Closure Object on the heap.  \\
   (funcall expr args) & Calls the expr with the given args.  \\
-  (labels ...) & ... \\
-  (code lvar fvar expr ... ) & ... \\
+  (labels bindings expr]) & Maps function names to bindings. \\
+  (code lvar fvar expr ... ) & A lambda that has been lifted.  \\
   \bottomrule
 \end{tabular}
 \caption{Primitives related to lambda intermediate forms.} \label{tab:lambda_intermediate}
