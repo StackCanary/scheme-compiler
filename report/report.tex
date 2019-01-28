@@ -239,23 +239,105 @@ The conditional primitives include if and cond.
 
 \begin{verbatim}
 
-(if consequent alternative)
+(if condition consequent alternative)
 
 \end{verbatim}
 
 A short example shows the implementation.
 
+\begingroup
+    \fontsize{8pt}{5pt}\selectfont
 \begin{verbatim}
 
-(if consequent alternative)
+// A program to return the lower of x and y. 
 
+(let ([x 3] 
+      [y 5])
+      (if (< x y) x y))
+
+define i64 @scheme_entry()
+{
+ entry: 
+ %tmp = alloca i64
+ store i64 12, i64* %tmp
+ %var10 = load i64, i64* %tmp
+ store i64 20, i64* %tmp
+ %var11 = load i64, i64* %tmp
+ store i64 %var11, i64* %tmp
+ %var17 = load i64, i64* %tmp
+ store i64 %var10, i64* %tmp
+ %var18 = load i64, i64* %tmp
+ %var19 = icmp slt i64 %var18, %var17
+ %var20 = zext i1 %var19 to i64
+ %var21 = shl i64 %var20, 7
+ %var22 = or i64 %var21, 31
+ store i64 %var22, i64* %tmp
+ %var15 = load i64, i64* %tmp
+ %var16 = icmp eq i64 %var15, 159
+ br i1 %var16, label %lab12, label %lab13 
+ lab12:
+ store i64 %var10, i64* %tmp
+ br label %lab14 
+ lab13:
+ store i64 %var11, i64* %tmp
+ br label %lab14 
+ lab14:
+ %ret = load i64, i64* %tmp
+ ret i64 %ret
+}
 \end{verbatim}
-
-\begin{verbatim}
-
-\end{verbatim}
+\endgroup
 
 \section{Lambdas}
+
+Now that our program contains many useful primitives, the next task is to implement lambdas. In order to implement lambdas, I visited several external resources. One, which was a blog on the topic of Closure Conversion \cite{closure-conversion}.
+
+Syntactically, a lambda is expressed as the following and describes anonymous functions. 
+
+\begin{verbatim}
+(lambda (formal args) body)
+\end{verbatim}
+
+\begin{table}[ht]
+  \centering
+\begin{tabular}{ l l }
+  \toprule
+  Primcall & Description \\ \hline
+  \midrule
+  (lambda? (formal args) body) & Constructs a lambda \\
+  \bottomrule
+\end{tabular}
+\caption{Primitives related to lambdas.} \label{tab:lambdas}
+\end{table}
+
+
+
+However, a lambda does not simply compile into a function pointer. This is because Scheme has lexical scoping. It is possible for an expression in the body of a lambda to contain a free variable. A free variable is one which is not defined in the formal arguments of the lambda expression. 
+
+\begin{verbatim}
+
+The variable x is free in the body of the second lambda expression. 
+
+(lambda (x) 
+ (lambda (y) 
+  (add x y)))
+
+\end{verbatim}
+
+Instead, a lambda compiles into a ``closure'' which is a datastructure that contains a pointer to a function and the values of its free variables.
+
+\begin{table}[ht]
+  \centering
+\begin{tabular}{ l l }
+  \toprule
+  Primcall & Description \\ \hline
+  \midrule
+  (closure ...) & ... \\
+  (funcall ...) & ... \\
+  \bottomrule
+\end{tabular}
+\caption{Primitives related to lambda intermediate forms.} \label{tab:lambda_intermediate}
+\end{table}
 
 \subsection{Code Transformation}
 
@@ -309,12 +391,90 @@ Pairs are constructed using the ``cons'' primitive which increases the heap poin
 >> (3 4 . 5)
 \end{verbatim}
 
-% TODO Make Diagram
-% TODO Show Code Emitted
+In memory, pairs are organised as the following. 
+
+\begin{verbatim}
+
+0 [val 1]
+1 [val 2]
+
+\end{verbatim}
+
+The following example shows the code emitted. The construction of pairs and accessing elements on the heap are performed through the use of functions in the C Runtime.
+
+\begingroup
+    \fontsize{8pt}{5pt}\selectfont
+\begin{verbatim}
+>(let* ([p (cons 3 4)]
+        [x (car p)]
+        [y (cdr p)])
+        (mul x y))
+
+define i64 @scheme_entry()
+{
+entry: 
+%tmp = alloca i64
+
+// var11 = 3
+store i64 12, i64* %tmp
+%var11 = load i64, i64* %tmp     
+
+// var12 = 4
+store i64 16, i64* %tmp
+%var12 = load i64, i64* %tmp
+
+// Call C Function hptr_con(var11, var12) to construct Pair
+%var13 = call i64 @hptr_con(i64 %var11, i64 %var12) 
+
+// Store pair in var10
+store i64 %var13, i64* %tmp
+%var10 = load i64, i64* %tmp
+
+// Load pair into var16
+store i64 %var10, i64* %tmp
+%var16 = load i64, i64* %tmp
+
+// Call C function hptr_car(var16) to retrieve Car of Pair
+%var17 = call i64 @hptr_car(i64 %var16)
+store i64 %var17, i64* %tmp
+
+// Store Car of Pair in var15
+%var15 = load i64, i64* %tmp
+
+// Load pair into var19
+store i64 %var10, i64* %tmp
+%var19 = load i64, i64* %tmp
+
+// Call C function hptr_cdr(var16) to retrieve Cdr of Pair
+%var20 = call i64 @hptr_cdr(i64 %var19)
+store i64 %var20, i64* %tmp
+
+// Store Cdr of Pair in var18
+%var18 = load i64, i64* %tmp
+
+// Load Car
+store i64 %var18, i64* %tmp
+%var21 = load i64, i64* %tmp
+
+// Load Cdr
+store i64 %var15, i64* %tmp
+%var22 = load i64, i64* %tmp
+
+// Multiply Car * Cdr 
+%var23 = mul  i64 %var22, %var21
+%var24 = sdiv i64 %var23,   4
+store i64 %var24, i64* %tmp
+
+// Return result
+%ret = load i64, i64* %tmp
+ret i64 %ret
+}
+\end{verbatim}
+\endgroup
 
 \subsection{Vectors}
 
-The primitives required for the construction of pairs include ``vector?'', ``make-vector'', ``vector-ref'' and ``vector-set!''.
+The primitives required for the construction of pairs include ``vector?'', ``make-vector'', ``vector-ref'' and ``vector-set!''. 
 
 \begin{table}[ht]
   \centering
@@ -339,9 +499,30 @@ The primitives required for the construction of pairs include ``vector?'', ``mak
 >> #(#\A #\A #\A)
 \end{verbatim}
 
+
+\begin{verbatim}
+
+0 [vec len]
+1 [val 1]
+2 [val 2]
+  .
+  .
+
+\end{verbatim}
+
 \subsection{Closures}
 
-A closure represents a closed lambda expression and is constructed during the closure conversion code transformation step. It is an Object that is also constructed on the heap.
+A closure represents a closed lambda expression and is constructed during the closure conversion code transformation step. It is an Object that is also constructed on the heap. A closure stores the function pointer followed by the values of the free variables.
+
+\begin{verbatim}
+
+0 [fcn ptr]
+1 [free v1]
+2 [free v2]
+  .
+  .
+
+\end{verbatim}
 
 \subsection{Strings}
 
@@ -353,11 +534,62 @@ Strings are stored in the same manner as vectors, the string's length is stored.
 
 \end{verbatim}
 
+\begin{verbatim}
+
+0 [str len]
+1 [val 1]
+2 [val 2]
+  .
+  .
+
+\end{verbatim}
+
+
+
+
+
 \section{Assignment}
 
+Variables in scheme can be mutated by the use of the ``set!'' procedure.  
 
+\begin{table}[ht]
+  \centering
+\begin{tabular}{ l l }
+  \toprule
+  Primcall & Description \\ \hline
+  \midrule
+  (set! var val) & Assigns var val.  \\
+  \bottomrule
+\end{tabular}
+\caption{Primitives related to Assignment.} \label{tab:assignment}
+\end{table}
 
 \subsection{Code Transformation}
+
+Assignment is implemented as a code transformation.
+
+The following example illustrates the challenges of assignment.
+
+\begin{verbatim}
+(let  
+ ([f (lambda (c) (cons (lambda (v) (set! c v)) (lambda () c)))])
+ (let ([p (f 0)])  // Call f (0) to retrieve Pair and set C to 0
+      ((car p) 12) // Call ((Car p) 12) to set C to 12
+      ((cdr p))))  // Call ((Cdr p)) to retrieve C
+\end{verbatim}
+
+The example consists of an outer lambda ``f(c)'' which returns a Pair of lambdas.
+
+The former mutates c and the latter which returns c.
+
+The lambdas are executed in the following order. First, c is set to 0. It is then mutated to 12 and finally the value is returned.
+
+The first challenge is that the variable C is a local variable, so it is ``stack allocated''. However, the variable can outlive the lambda it was declared in. Secondly, the value of c must be mutable such that its mutated value is visible to those who hold a reference to it.
+
+These two challenges can be tackled through the use of a code transformation. It is important to note that variables are defined in a let or a lambda. The code tranformation works firstly by performing a depth first search to find the assignable variables, variables that have the set! procedure called on them. 
+
+% in which ``set! c val'' is replaced with ``vector-set! c 0 val''. 
+
 
 
 
@@ -378,6 +610,14 @@ A similar project based on the paper, but targets x86.
 \bibitem{tutorial}
 An extended tutorial 
 \\\texttt{http://www.cs.indiana.edu/~aghuloum/compilers-tutorial-2006-09-16.pdf}
+
+\bibitem{closure-conversion}
+Closure Conversion
+\\\texttt{http://matt.might.net/articles/closure-conversion/}
+
+\bibitem{closure-conversion}
+Closure Conversion
+\\\texttt{http://matt.might.net/articles/closure-conversion/}
 
 \end{thebibliography}  
 

@@ -32,9 +32,9 @@
 	 [(mul)          #t]
 	 [(div)          #t]
 	 [(if)           #t]
-	 [(lt)           #t]
-	 [(eq)           #t]
-	 [(gt)           #t]
+	 [(<)            #t]
+	 [(=)            #t]
+	 [(>)            #t]
 	 [(pair?)        #t]
 	 [(cons)         #t]
 	 [(car)          #t]
@@ -85,9 +85,9 @@
     [(mul)          mul-primcall-emitter]
     [(div)          div-primcall-emitter]
     [(if)           if-primcall-emitter]
-    [(lt)           lt-primcall-emitter]
-    [(eq)           eq-primcall-emitter]
-    [(gt)           gt-primcall-emitter]
+    [(<)            lt-primcall-emitter]
+    [(=)            eq-primcall-emitter]
+    [(>)            gt-primcall-emitter]
     [(cons)         cons-primcall-emitter]
     [(car)          car-primcall-emitter]
     [(cdr)          cdr-primcall-emitter]
@@ -158,7 +158,7 @@
     (emit "%~a = load i64, i64* %tmp" label1)
     (emit "%~a = icmp eq i64 %~a, 0"  label2 label1)
     (emit "%~a = zext i1 %~a to i64"  label3 label2)
-    (emit "%~a = shl i64 %~a, 8"      label4 label3)
+    (emit "%~a = shl i64 %~a, 7"      label4 label3)
     (emit "%~a = or i64 %~a, 31"      label5 label4)
     (emit "store i64 %~a, i64* %tmp"  label5)))
 
@@ -171,7 +171,7 @@
     (emit "%~a = load i64, i64* %tmp" label1)
     (emit "%~a = icmp eq i64 %~a, 47" label2 label1)
     (emit "%~a = zext i1 %~a to i64"  label3 label2)
-    (emit "%~a = shl i64 %~a, 8"      label4 label3)
+    (emit "%~a = shl i64 %~a, 7"      label4 label3)
     (emit "%~a = or i64 %~a, 31"      label5 label4)
     (emit "store i64 %~a, i64* %tmp"  label5)))
 
@@ -184,7 +184,7 @@
     (emit "%~a = and i64 %~a, 3"      label2 label1) ;; TODO FIX
     (emit "%~a = icmp eq i64 %~a, ~a" label3 label2 bits)
     (emit "%~a = zext i1 %~a to i64"  label4 label3)
-    (emit "%~a = shl i64 %~a, 8"      label5 label4)
+    (emit "%~a = shl i64 %~a, 7"      label5 label4)
     (emit "%~a = or i64 %~a, 31"      label6 label5)
     (emit "store i64 %~a, i64* %tmp"  label6)))
 
@@ -215,7 +215,7 @@
     (emit "%~a = and i64 %~a, 127"    label2 label1)
     (emit "%~a = icmp eq i64 %~a, 31" label3 label2) 
     (emit "%~a = zext i1 %~a to i64"  label4 label3)
-    (emit "%~a = shl i64 %~a, 8"      label5 label4)
+    (emit "%~a = shl i64 %~a, 7"      label5 label4)
     (emit "%~a = or i64 %~a, 31"      label6 label5)
     (emit "store i64 %~a, i64* %tmp"  label6)))
 
@@ -303,7 +303,7 @@
     (emit "%~a = load i64, i64* %tmp" label2)
     (emit "%~a = icmp slt i64 %~a, %~a" label3 label2 label1) 
     (emit "%~a = zext i1 %~a to i64"  label4 label3)
-    (emit "%~a = shl i64 %~a, 8"      label5 label4)
+    (emit "%~a = shl i64 %~a, 7"      label5 label4)
     (emit "%~a = or i64 %~a, 31"      label6 label5)
     (emit "store i64 %~a, i64* %tmp"  label6)
   ))
@@ -322,7 +322,7 @@
     (emit "%~a = load i64, i64* %tmp" label2)
     (emit "%~a = icmp eq i64 %~a, %~a" label3 label2 label1) 
     (emit "%~a = zext i1 %~a to i64"  label4 label3)
-    (emit "%~a = shl i64 %~a, 8"      label5 label4)
+    (emit "%~a = shl i64 %~a, 7"      label5 label4)
     (emit "%~a = or i64 %~a, 31"      label6 label5)
     (emit "store i64 %~a, i64* %tmp"  label6)
     ))
@@ -341,7 +341,7 @@
     (emit "%~a = load i64, i64* %tmp" label2)
     (emit "%~a = icmp sgt i64 %~a, %~a" label3 label2 label1) 
     (emit "%~a = zext i1 %~a to i64"  label4 label3)
-    (emit "%~a = shl i64 %~a, 8"      label5 label4)
+    (emit "%~a = shl i64 %~a, 7"      label5 label4)
     (emit "%~a = or i64 %~a, 31"      label6 label5)
     (emit "store i64 %~a, i64* %tmp"  label6)
   ))
