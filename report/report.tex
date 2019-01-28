@@ -326,20 +326,31 @@ The variable x is free in the body of the second lambda expression.
 
 Instead, a lambda compiles into a ``closure'' which is a datastructure that contains a pointer to a function and the values of its free variables.
 
+
+
+\subsection{Code Transformation}
+
+In order to accomplish this, the lambda expression is transformed into an intermediate forms. Table~\ref{tab:lambda_intermediate} shows the intermediate forms. 
+
 \begin{table}[ht]
   \centering
 \begin{tabular}{ l l }
   \toprule
   Primcall & Description \\ \hline
   \midrule
-  (closure ...) & ... \\
-  (funcall ...) & ... \\
+  (closure lvar fvar ... ) & Emits a pointer to a Closure Object on the heap.  \\
+  (funcall expr args) & Calls the expr with the given args.  \\
+  (labels ...) & ... \\
+  (code lvar fvar expr ... ) & ... \\
   \bottomrule
 \end{tabular}
 \caption{Primitives related to lambda intermediate forms.} \label{tab:lambda_intermediate}
 \end{table}
 
-\subsection{Code Transformation}
+\subsection{Code Emitted}
+
+
+
 
 \section{Datastructures and the Heap}
 
@@ -571,11 +582,13 @@ Assignment is implemented as a code transformation.
 The following example illustrates the challenges of assignment.
 
 \begin{verbatim}
-(let  
- ([f (lambda (c) (cons (lambda (v) (set! c v)) (lambda () c)))])
- (let ([p (f 0)])  // Call f (0) to retrieve Pair and set C to 0
-      ((car p) 12) // Call ((Car p) 12) to set C to 12
-      ((cdr p))))  // Call ((Cdr p)) to retrieve C
+(let ((f (lambda (c) ()
+     	 (cons (lambda (v) (c) (set! c v))
+	       	       (lambda () (c) c)))))
+(let ((p (funcall f 0)))  // Call f (0) to retrieve Pair and set C to 0
+     (funcall (car p) 12) // Call ((Car p) 12) to set C to 12
+     (funcall (cdr p))))  // Call ((Cdr p)) to retrieve C
+
 \end{verbatim}
 
 The example consists of an outer lambda ``f(c)'' which returns a Pair of lambdas.
@@ -586,12 +599,26 @@ The lambdas are executed in the following order. First, c is set to 0. It is the
 
 The first challenge is that the variable C is a local variable, so it is ``stack allocated''. However, the variable can outlive the lambda it was declared in. Secondly, the value of c must be mutable such that its mutated value is visible to those who hold a reference to it.
 
-These two challenges can be tackled through the use of a code transformation. It is important to note that variables are defined in a let or a lambda. The code tranformation works firstly by performing a depth first search to find the assignable variables, variables that have the set! procedure called on them. 
-
-% in which ``set! c val'' is replaced with ``vector-set! c 0 val''. 
+These two challenges can be tackled through the use of a code transformation. It is important to note that variables are defined in a let or a lambda. The code tranformation works firstly by performing a depth first search to find the assignable variables, variables that have the ``set!'' procedure called on them.
 
 
+% in which ``set! c val'' is replaced with ``vector-set! c 0 val''.
 
+Once assignable variables are found, code transformation can be performed. 
+
+\begin{verbatim}
+
+After code transformation. 
+
+(let ((f (lambda (c) ()
+     (let ((c (make-vector 1 c)))
+     	  (cons (lambda (v) (c) (vector-set! c 0 v))
+	  	  (lambda () (c) (vector-ref c 0)))))))
+(let ((p (funcall f 0)))
+     (funcall (car p) 12)
+     (funcall (cdr p))))
+
+\end{verbatim}
 
 \begin{thebibliography}{5}
 
