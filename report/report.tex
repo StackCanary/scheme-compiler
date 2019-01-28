@@ -601,10 +601,9 @@ The first challenge is that the variable C is a local variable, so it is ``stack
 
 These two challenges can be tackled through the use of a code transformation. It is important to note that variables are defined in a let or a lambda. The code tranformation works firstly by performing a depth first search to find the assignable variables, variables that have the ``set!'' procedure called on them.
 
+Once assignable variables are found, code transformation can be performed. The general idea is to replace the body of a lambda or let where the assignable variable is defined by a let which copies the value of the variable into a vector of size 1. An alternate name for this transformation is ``Boxing''.
 
-% in which ``set! c val'' is replaced with ``vector-set! c 0 val''.
-
-Once assignable variables are found, code transformation can be performed. 
+Any references made to that variable are done through the vector version of the variable. Assignment via \textbf{set!} is replaced by \textbf{vector-set!}. Variable access is replaced by \textbf{vector-ref}.
 
 \begin{verbatim}
 
@@ -614,11 +613,12 @@ After code transformation.
      (let ((c (make-vector 1 c)))
      	  (cons (lambda (v) (c) (vector-set! c 0 v))
 	  	  (lambda () (c) (vector-ref c 0)))))))
-(let ((p (funcall f 0)))
-     (funcall (car p) 12)
-     (funcall (cdr p))))
-
+(let ((p (f 0)))
+     ((car p) 12)
+     ((cdr p))))
 \end{verbatim}
+
+The indirection allows each closure to observe the same version of the variable. 
 
 \begin{thebibliography}{5}
 
