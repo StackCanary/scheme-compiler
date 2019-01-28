@@ -237,7 +237,7 @@ Multiple s-expressions can be chained sequentially through use of the Begin prim
 
 \section{Conditionals}
 
-The conditional primitives include if and cond.
+The conditional primitives include if and cond. 
 
 \begin{verbatim}
 
@@ -275,20 +275,22 @@ define i64 @scheme_entry()
  %var22 = or i64 %var21, 31
  store i64 %var22, i64* %tmp
  %var15 = load i64, i64* %tmp
- %var16 = icmp eq i64 %var15, 159
- br i1 %var16, label %lab12, label %lab13 
- lab12:
- store i64 %var10, i64* %tmp
- br label %lab14 
- lab13:
- store i64 %var11, i64* %tmp
+ %var16 = icmp eq i64 %var15, 159          // Compare Conditional
+ br i1 %var16, label %lab12, label %lab13  // Branch
+ lab12:                                    // Conseq
+ store i64 %var10, i64* %tmp 
+ br label %lab14                           
+ lab13:                                    // Altern
+ store i64 %var11, i64* %tmp 
  br label %lab14 
  lab14:
- %ret = load i64, i64* %tmp
+ %ret = load i64, i64* %tmp  
  ret i64 %ret
 }
 \end{verbatim}
 \endgroup
+
+Unique labels are generated for the Consequent and Alternative branches. The conditional is compared with the packed value of true (159). This is followed by a branching instruction which jumps to the Consequent on equality or to the Alternative otherwise.
 
 \section{Lambdas}
 
@@ -311,8 +313,6 @@ Syntactically, a lambda is expressed as the following and describes anonymous fu
 \end{tabular}
 \caption{Primitives related to lambdas.} \label{tab:lambdas}
 \end{table}
-
-
 
 However, a lambda does not simply compile into a function pointer. This is because Scheme has lexical scoping. It is possible for an expression in the body of a lambda to contain a free variable. A free variable is one which is not defined in the formal arguments of the lambda expression. 
 
