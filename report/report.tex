@@ -233,6 +233,8 @@ Multiple s-expressions can be chained sequentially through use of the Begin prim
 
 (begin exp1 exp2 ...) 
 
+Implementation wise, the begin expression simply emits the code for each expression sequentially. 
+
 \end{verbatim}
 
 \section{Conditionals}
@@ -328,6 +330,7 @@ The variable x is free in the body of the second lambda expression.
 
 Instead, a lambda compiles into a ``closure'' which is a datastructure that contains a pointer to a function and the values of its free variables.
 
+
 \subsection{Code Transformation}
 
 In order to accomplish this, the lambda expression is transformed into an intermediate forms. Table~\ref{tab:lambda_intermediate} shows the intermediate forms. 
@@ -340,21 +343,99 @@ In order to accomplish this, the lambda expression is transformed into an interm
   \midrule
   (closure lvar fvar ... ) & Emits a pointer to a Closure Object on the heap.  \\
   (funcall expr args) & Calls the expr with the given args.  \\
-  (labels bindings expr]) & Maps function names to bindings. \\
+  (labels bindings expr) & Maps function names to bindings. \\
   (code lvar fvar expr ... ) & A lambda that has been lifted.  \\
   \bottomrule
 \end{tabular}
 \caption{Primitives related to lambda intermediate forms.} \label{tab:lambda_intermediate}
 \end{table}
 
-\subsection{Code Emitted}
+\subsection{Example}
+
+To demonstrate the code transformation, we shall compile a small example and explain the seperate elements.
+
+\begin{verbatim}
+(let ((x 5))
+  (lambda (y) (lambda () (+ x y))))
+\end{verbatim}
+
+\subsubsection{Transformation into Free Variables Analysed Form}
+
+After the process of free variable analysis (currently skipped), the free variables are lifted to the top. My compiler expects code in the free variable analysed form. 
+
+\begin{verbatim}
+After Free Variable Analysis
+
+(let ((x 5))
+  (lambda (y) (lambda () (+ x y))))
+\end{verbatim}
+
+\subsubsection{Transformation into Labels, Code and Closure Form}
+
+\begin{verbatim}
+
+(labels 
+   ([f0 (code () (x y) (add x y)])         /* Lvar to 
+    [f1 (code (y) (x) (closure f0 x y))])       Code Bindings */
+(let ((x 5)) (closure f1 x)))
+\end{verbatim}
+
+In this final transformation, a top level Labels form is constructed. The lambda's are transformed to closure forms, assigned a name e.g. ``f0'' (referred to as a Lvar), a llvm function name ``fun10'' and its code is collected in the top level Labels construct recursively. 
+
+The labels form is then emitted, each Code construct is emitted as a separate llvm function.
+
+The environment was updated to distinguish local variables and free variables. In the code body, formal function arguments are emitted in the same manner as local variables. However, free variables are stored as an offsets from the closure pointer in the environment.
+
+\begingroup
+    \fontsize{8pt}{5pt}\selectfont
+\begin{verbatim}
+
+// f0
+define i64 @fun10() 
+{
+ . // Omitted
+}
+ 
+// f1 -> (code (y) (x) (closure f0 x y)) 
+define i64 @fun11(i64 %arg0) // Accepts 1 Argument
+{
+entry: 
+%tmp = alloca i64
+%var15 = call i64 @hptr_ptr(i64 2)
+call void @hptr_inc(i64 2)
+// Store Function Pointer on Heap
+call void @hptr_inc(i64 ptrtoint (i64 ()* @fun10 to i64))
+// Access Variables through Closure Ptr
+call i64 @hptr_get_freevar(i64 0, i64* %tmp) 
+%var19 = load i64, i64* %tmp
+call void @hptr_inc(i64 %var19)
+store i64 %arg0, i64* %tmp
+%var20 = load i64, i64* %tmp
+call void @hptr_inc(i64 %var20)
+store i64 %var15, i64* %tmp
+%ret = load i64, i64* %tmp
+ret i64 %ret
+}
+
+define i64 @scheme_entry()
+{
+. // Omitted
+}
+\end{verbatim}
+\endgroup
 
 
+\subsubsection{Function Calls}
+
+% Another example is required for function calls
+% Saving Closure Pointer Restoring, Passing Arguments
+
+The closure being called has a function pointer element and holds the values of the free variables as well. In order to call a function, the previous closure pointer is saved and the closure pointer is set to the function being called. The function pointer is extracted. It is stored as a number and first requires a cast to a function pointer. A call to the function pointer is issued. After the function call, the saved closure pointer is restored. 
 
 
 \section{Datastructures and the Heap}
 
-Pairs, Vectors, Closures and Strings are datastructures that cannot be represented by a single fixed width number. Hence, the runtime was extended by adding a heap. A contigious region of memory is allocated to store runtime objects that cannot be represented by an immediate.
+Pairs, Vectors, Closures and Strings are datastructures that cannot be represented by a single fixed width number. Hence, the runtime was extended by adding a heap. A contigious region of memory is allocated to store runtime objects that cannot be represented by an immediate. 
 
 The objects are constructed on the heap and a pointer to them is emitted. By aligning the allocated objects to a multiple of 8, the last 3 bits of a pointer can be used to store a tag, these can be found in Table~\ref{tab:datastructures}.
 
@@ -622,10 +703,6 @@ The indirection allows each closure to observe the same version of the variable.
 
 \begin{thebibliography}{5}
 
-\bibitem{wiki} 
-Wikipedia
-\\\texttt{https://wikipedia.org}
-
 \bibitem{inc}
 An Incremental Approach to Compiler Construction.
 \\\texttt{http://scheme2006.cs.uchicago.edu/11-ghuloum.pdf}
@@ -642,9 +719,6 @@ An extended tutorial
 Closure Conversion
 \\\texttt{http://matt.might.net/articles/closure-conversion/}
 
-\bibitem{closure-conversion}
-Closure Conversion
-\\\texttt{http://matt.might.net/articles/closure-conversion/}
 
 \end{thebibliography}  
 
