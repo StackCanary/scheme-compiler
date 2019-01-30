@@ -370,7 +370,7 @@ After Free Variable Analysis
   (lambda (y) (lambda () (+ x y))))
 \end{verbatim}
 
-\subsubsection{Transformation into Labels, Code and Closure Form}
+\subsubsection{Closure Conversion Transformation}
 
 \begin{verbatim}
 
@@ -425,13 +425,53 @@ define i64 @scheme_entry()
 \endgroup
 
 
-\subsubsection{Function Calls}
+\section{Function Calls}
 
 % Another example is required for function calls
 % Saving Closure Pointer Restoring, Passing Arguments
 
-The closure being called has a function pointer element and holds the values of the free variables as well. In order to call a function, the previous closure pointer is saved and the closure pointer is set to the function being called. The function pointer is extracted. It is stored as a number and first requires a cast to a function pointer. A call to the function pointer is issued. After the function call, the saved closure pointer is restored. 
+The closure being called has a function pointer element and holds the values of the free variables as well. In order to call a function, the previous closure pointer is saved and the closure pointer is set to the function being called. The function pointer is extracted. It is stored as a number and first requires a cast to a function pointer. A call to the function pointer is issued. After the function call, the saved closure pointer is restored.
 
+\begin{verbatim}
+Input:
+
+(let ([f (lambda (x y) () (mul x y) )])
+     (funcall f 3 4))
+
+Closure Converted:
+
+(labels ((f10 (code (x y) () (mul x y)))) (let ((f (closure f10))) (funcall f 3 4)))
+
+\end{verbatim}
+
+\begin{verbatim}
+Code:
+
+define i64 @fun10(i64 %arg0, i64 %arg1)
+{
+entry: 
+%tmp = alloca i64
+... // Omitted
+ret i64 %ret
+}
+define i64 @scheme_entry()
+{
+entry: 
+%tmp = alloca i64
+... // Omitted
+store i64 %var15, i64* %tmp                      // Put Clsr Ptr in Tmp
+%var22 = load i64, i64* %tmp                     // Load New Clsr Ptr
+%var25 = call i64 @hptr_get_clsptr()             // Save Prev Clsr Ptr
+call void @hptr_set_clsptr(i64 %var22)           // Set New Clsr Ptr
+%var23 = call i64 @hptr_closure_lab()            // Load Fcn Ptr from Clsr Pointer
+%var24 = inttoptr i64 %var23 to i64 (i64, i64)*  // Cast Fcn from Long to Fcn Ptr
+%var26 = call i64 %var24(i64 %var20, i64 %var21) // Call Fcn Ptr
+call void @hptr_set_clsptr(i64 %var25)           // Restore Prev Clsr Ptr
+store i64 %var26, i64* %tmp
+%ret = load i64, i64* %tmp
+ret i64 %ret
+}
+\end{verbatim}
 
 \section{Datastructures and the Heap}
 
