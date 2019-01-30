@@ -551,6 +551,9 @@
 
    ))
 
+(define (lhs x) (car x))
+(define (rhs x)(cadr x))
+
 ;; Transform lambdas annoted with free variables into labels, code and closure forms
 ;; TODO
 (define (transform_b expr)
@@ -564,9 +567,7 @@
   ;; Top Level Labels
   (define labels '())
 
-  (define (lhs x) (car x))
 
-  (define (rhs x)(cadr x))
 
   (define (transform-let-bindings bindings)
 
@@ -615,6 +616,11 @@
     )
   )
 
+
+(define (mk-lambda var fvr body)
+  (cons* 'lambda var fvr body)
+  )
+
 ;; TODO Variable Transformation
 ;; Citation https://github.com/namin/inc/
 (define (transform_c expr)
@@ -637,10 +643,6 @@
       )
     (when (list? expr)
       (for-each find-assignable expr))
-    )
-
-  (define (mk-lambda var fvr body)
-    (cons* 'lambda var fvr body)
     )
 
   (define (mk-let bindings body)
@@ -705,23 +707,39 @@
 
 ;; Constant Propogation 
 (define (transform_d expr)
-  '()
 
-  (define (mk-lambda ))
+  (define (transform-let-bindings bindings)
 
-    (define (transform x)
+    (map
+
+     (lambda (binding)
+
+       (let ((lhs (lhs binding)) (rhs (rhs binding)))
+
+	 (list lhs (transform rhs))
+	 
+	 )
+       )
+
+     bindings)
+    
+    )
+
+  (define (transform x)
     (cond
-     [(     null? x) x]
-     [(   lambda? x) x] ;; TODO (cadr) - var, (caddr) - fvr, (cdddr) - body
-     [(immediate? x) x]
-     [( primcall? x) x] 
+     [(     null? x) x] ;; Done
+     [(   lambda? x) (mk-lambda (cadr expr) (caddr expr) (transform (cdddr expr)))]
+     [(immediate? x) x] ;; Done
+     [( primcall? x) x]
      [( variable? x) x]
-     [(      let? x) x] ;; TODO tranform bindings
-     [(     let*? x) x] ;; TODO transform bindings
-     [(    begin? x) x] ;; TODO (cdr x)
-     [(     list? x) x]
-     [       else    x]))
-  
+     [(      let? x) (cons* 'let   (transform-let-bindings (bindings x)) (transform (body x)))] ;; Done
+     [(     let*? x) (cons* 'let*  (transform-let-bindings (bindings x)) (transform (body x)))] ;; Done
+     [(    begin? x) (cons* 'begin (transform (cdr x)))] ;; Done
+     [(     list? x) (map transform x)] ;; Done
+     [       else    x])) ;; Done
+
+
+  '()
   )
 
 (define (emit-primcall expr env)
