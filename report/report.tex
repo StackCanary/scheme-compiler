@@ -330,7 +330,6 @@ The variable x is free in the body of the second lambda expression.
 
 Instead, a lambda compiles into a ``closure'' which is a datastructure that contains a pointer to a function and the values of its free variables.
 
-
 \subsection{Code Transformation}
 
 In order to accomplish this, the lambda expression is transformed into an intermediate forms. Table~\ref{tab:lambda_intermediate} shows the intermediate forms. 
@@ -356,7 +355,7 @@ To demonstrate the code transformation, we shall compile a small example and exp
 
 \begin{verbatim}
 (let ((x 5))
-  (lambda (y) (lambda () (+ x y))))
+  (lambda (y) (lambda () (add x y))))
 \end{verbatim}
 
 \subsubsection{Transformation into Free Variables Analysed Form}
@@ -367,7 +366,7 @@ After the process of free variable analysis (currently skipped), the free variab
 After Free Variable Analysis
 
 (let ((x 5))
-  (lambda (y) (lambda () (+ x y))))
+  (lambda (y) (lambda () (add x y))))
 \end{verbatim}
 
 \subsubsection{Closure Conversion Transformation}
@@ -380,7 +379,9 @@ After Free Variable Analysis
 (let ((x 5)) (closure f1 x)))
 \end{verbatim}
 
-In this final transformation, a top level Labels form is constructed. The lambda's are transformed to closure forms, assigned a name e.g. ``f0'' (referred to as a Lvar), a llvm function name ``fun10'' and its code is collected in the top level Labels construct recursively. 
+In this final transformation, a top level Labels form is constructed. The lambda's are transformed to closure forms, assigned a name e.g. ``f0'' (referred to as a Lvar), a llvm function name ``fun10'' and its code is collected in the top level Labels construct recursively.
+
+\subsubsection{Code form}
 
 The labels form is then emitted, each Code construct is emitted as a separate llvm function.
 

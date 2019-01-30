@@ -382,7 +382,6 @@
 		)))
    ))
 
-
 ;; TODO Implement Lambdas
 
 
@@ -701,6 +700,28 @@
   (find-assignable expr)
 
   (transform expr)
+  )
+
+
+;; Constant Propogation 
+(define (transform_d expr)
+  '()
+
+  (define (mk-lambda ))
+
+    (define (transform x)
+    (cond
+     [(     null? x) x]
+     [(   lambda? x) x] ;; TODO (cadr) - var, (caddr) - fvr, (cdddr) - body
+     [(immediate? x) x]
+     [( primcall? x) x] 
+     [( variable? x) x]
+     [(      let? x) x] ;; TODO tranform bindings
+     [(     let*? x) x] ;; TODO transform bindings
+     [(    begin? x) x] ;; TODO (cdr x)
+     [(     list? x) x]
+     [       else    x]))
+  
   )
 
 (define (emit-primcall expr env)
