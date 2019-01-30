@@ -1,4 +1,5 @@
 (import (rnrs arithmetic bitwise (6)))
+(import (srfi srfi-1))
 
 					; Emit 
 
@@ -306,7 +307,7 @@
     (emit "%~a = shl i64 %~a, 7"      label5 label4)
     (emit "%~a = or i64 %~a, 31"      label6 label5)
     (emit "store i64 %~a, i64* %tmp"  label6)
-  ))
+    ))
 
 (define (eq-primcall-emitter env arg1 arg2)
   (let ((label1 (get-label))
@@ -344,7 +345,7 @@
     (emit "%~a = shl i64 %~a, 7"      label5 label4)
     (emit "%~a = or i64 %~a, 31"      label6 label5)
     (emit "store i64 %~a, i64* %tmp"  label6)
-  ))
+    ))
 
 (define (and-primcall-emitter env arg1 arg2)
   '()
@@ -597,7 +598,7 @@
 
 		       (mk-clos lvar fvr) ;; Change Lambda to Closure
 		       
-		      )
+		       )
       ] ;; TODO (cadr) - var, (caddr) - fvr, (cdddr) - body
      [(immediate? x) x]
      [( primcall? x) (cons* (car x) (transform (cdr x)))] 
@@ -668,7 +669,7 @@
 		      (list (mk-let
 			     (map (lambda (v) (list v (list 'make-vector 1 v))) a-vars)
 			     (transform (cdddr expr))
-			)))
+			     )))
 	   ]
 	 )
 	)
@@ -704,34 +705,66 @@
   (transform expr)
   )
 
+(define (all? x)
+  (cond
+   ((null? x) #t)
+   ( else
+     (if (car x) (all? (cdr x)) #f)
+     )))
 
 ;; Constant Propogation 
 (define (transform_d expr)
 
-  (define (transform-let-bindings bindings)
-
+  (define (transform-primargs primargs)
     (map
+     (lambda (arg)
+       (if (pair? arg) (transform arg) arg))
+     primargs)
+    )
 
+
+  (define (transform-let-bindings bindings)
+    (map
      (lambda (binding)
-
        (let ((lhs (lhs binding)) (rhs (rhs binding)))
-
 	 (list lhs (transform rhs))
-	 
 	 )
        )
 
      bindings)
-    
+    )
+
+  (define (primcall-optimiser primcall primargs)
+    (case primcall
+      [( add) (apply + primargs)]
+      [ else (cons primcall primargs)]
+     )
     )
 
   (define (transform x)
     (cond
      [(     null? x) x] ;; Done
-     [(   lambda? x) (mk-lambda (cadr expr) (caddr expr) (transform (cdddr expr)))]
+     [(   lambda? x) (mk-lambda (cadr x) (caddr x) (transform (cdddr x)))]
      [(immediate? x) x] ;; Done
-     [( primcall? x) x]
-     [( variable? x) x]
+     
+     [( primcall? x) 
+
+       (let* ([primcall (car x)]
+	      [primargs (cdr x)]
+	      [transformed-primargs (transform-primargs primargs)]
+	      [all-immediates (all? (map immediate? transformed-primargs))])
+
+	 (if
+	  all-immediates
+	  (primcall-optimiser primcall primargs)
+	  (cons primcall transformed-primargs)
+	  )
+	 
+	 )
+      
+      ]
+     
+     [( variable? x) x] ;; Done
      [(      let? x) (cons* 'let   (transform-let-bindings (bindings x)) (transform (body x)))] ;; Done
      [(     let*? x) (cons* 'let*  (transform-let-bindings (bindings x)) (transform (body x)))] ;; Done
      [(    begin? x) (cons* 'begin (transform (cdr x)))] ;; Done
@@ -739,7 +772,7 @@
      [       else    x])) ;; Done
 
 
-  '()
+  (transform expr)
   )
 
 (define (emit-primcall expr env)
@@ -771,7 +804,7 @@
   (caddr (lookup x env)))
 
 (define (emit-variable expr env)
-   (let* ((tuple (lookup expr env)) (free (cadr tuple)) (value (car tuple)) (funarg (caddr tuple)))
+  (let* ((tuple (lookup expr env)) (free (cadr tuple)) (value (car tuple)) (funarg (caddr tuple)))
     (if free
 	(emit "call i64 @hptr_get_freevar(i64 ~a, i64* %tmp)" value) ;; Get freevar from closure pointer
 	(emit "store i64 %~a, i64* %tmp" value)
@@ -881,7 +914,7 @@
     (emit "%~a = load i64, i64* %tmp" label2)
     (emit "%~a = call i64 @hptr_con(i64 %~a, i64 %~a)" label3 label1 label2)
     (emit "store i64 %~a, i64* %tmp" label3)
-))
+    ))
 
 (define (car-primcall-emitter env arg)
   (let ((label1 (get-label)) (label2 (get-label)))
