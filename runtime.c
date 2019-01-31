@@ -81,6 +81,11 @@ long hptr_get_clsptr()
     return cptr;
 }
 
+void gc(long *roots, long size)
+{
+  
+}
+
 
 long hptr_vector_mak(long size, long value)
 {
