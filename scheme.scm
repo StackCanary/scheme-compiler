@@ -756,8 +756,6 @@
 	      [primargs (cdr x)]
 	      [transformed-primargs (transform-primargs primargs)]
 	      [all-immediates (all? (map immediate? transformed-primargs))])
-
-	 (display transformed-primargs) (display "\n")
 	 
 	 (if
 	  all-immediates
