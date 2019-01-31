@@ -718,7 +718,7 @@
   (define (transform-primargs primargs)
     (map
      (lambda (arg)
-       (if (pair? arg) (transform arg) arg))
+       (if (immediate? arg) arg (transform arg)))
      primargs)
     )
 
@@ -737,6 +737,9 @@
   (define (primcall-optimiser primcall primargs)
     (case primcall
       [( add) (apply + primargs)]
+      [( sub) (apply - primargs)]
+      [( mul) (apply * primargs)]
+      [( div) (apply / primargs)]
       [ else (cons primcall primargs)]
      )
     )
@@ -754,9 +757,11 @@
 	      [transformed-primargs (transform-primargs primargs)]
 	      [all-immediates (all? (map immediate? transformed-primargs))])
 
+	 (display transformed-primargs) (display "\n")
+	 
 	 (if
 	  all-immediates
-	  (primcall-optimiser primcall primargs)
+	  (primcall-optimiser primcall transformed-primargs)
 	  (cons primcall transformed-primargs)
 	  )
 	 
