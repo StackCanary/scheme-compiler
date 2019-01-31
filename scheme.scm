@@ -740,7 +740,7 @@
       [( mul) (apply * primargs)]
       [( div) (apply / primargs)]
       [ else (cons primcall primargs)]
-     )
+      )
     )
 
   (define (transform x)
@@ -751,18 +751,18 @@
      
      [( primcall? x) 
 
-       (let* ([primcall (car x)]
-	      [primargs (cdr x)]
-	      [transformed-primargs (transform-primargs primargs)] ;; Transform Children
-	      [all-immediates (all? (map immediate? transformed-primargs))])
-	 
-	 (if
-	  all-immediates
-	  (primcall-optimiser primcall transformed-primargs)      ;; Then Transform ourselves
-	  (cons primcall transformed-primargs)
-	  )
-	 
+      (let* ([primcall (car x)]
+	     [primargs (cdr x)]
+	     [transformed-primargs (transform-primargs primargs)] ;; Transform Children
+	     [all-immediates (all? (map immediate? transformed-primargs))])
+	
+	(if
+	 all-immediates
+	 (primcall-optimiser primcall transformed-primargs)      ;; Then Transform ourselves
+	 (cons primcall transformed-primargs)
 	 )
+	
+	)
       
       ]
      
@@ -783,6 +783,9 @@
 ;; Apply (interpreter transform) transform_e to rhs of let bindings
 ;; TODO Remove binding from let instruction
 (define (transform_d expr)
+
+  (define (not-immediate-bindings binding)
+    (not (immediate? (rhs binding))))
   
   (define (transform-let-bindings bindings known_value)
     (map
@@ -802,7 +805,7 @@
      [(   lambda? x) (mk-lambda (cadr x) (caddr x) (transform (cdddr x) known_value))]
      [(immediate? x) x] ;; Done
      [( primcall? x) (cons* (car x) (transform (cdr x) known_value))]
-     [( variable? x) (lookup-env-val x known_value)] ;; Done
+     [( variable? x) (if (assv x known_value) (lookup-env-val x known_value) x) ]  ;; Done
      
      [(      let? x)
 
@@ -810,24 +813,24 @@
 	     
 	     (map
 	      (lambda (binding)
-		(let* ([lhs (lhs binding)]
-		       [rhs (rhs binding)]
-		       [bin (list lhs (transform (transform_e rhs) known_value))])
-
-		  (when (immediate? rhs) (set! known_value (ptpair lhs rhs known_value)))
-
+		(let* ([_lhs_ (lhs binding)]
+		       [_rhs_ (rhs binding)]
+		       [bin (list _lhs_ (transform (transform_e _rhs_) known_value))])
+		  
+		  (when (immediate? (rhs bin)) (set! known_value (ptpair _lhs_ (rhs bin) known_value)))
+		  
 		  bin
 		  )
 		)
 	      (bindings x))
-	     
+
 	     (transform (body x) known_value)
 	     )
-
-;;    (cons* 'let   (transform-let-bindings (bindings x) known_value) (transform (body x) known_value))
+      
+      ;;    (cons* 'let   (transform-let-bindings (bindings x) known_value) (transform (body x) known_value))
       ] 
      
-;;     [(     let*? x) (cons* 'let*  (transform-let-bindings (bindings x) known_value) (transform (body x) known_value))] ;; Done
+     ;;     [(     let*? x) (cons* 'let*  (transform-let-bindings (bindings x) known_value) (transform (body x) known_value))] ;; Done
      [(    begin? x) (cons* 'begin (transform (cdr x)  known_value))] ;; Done
      [(     list? x) (map (lambda (exp) (transform exp known_value)) x)] ;; Done
      [       else    x])) ;; Done
