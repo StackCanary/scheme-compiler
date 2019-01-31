@@ -781,6 +781,7 @@
 ;; Constant Propogation
 ;; Replace known variable values with their symbols
 ;; Apply (interpreter transform) transform_e to rhs of let bindings
+;; TODO Remove binding from let instruction
 (define (transform_d expr)
   
   (define (transform-let-bindings bindings known_value)
@@ -800,7 +801,7 @@
      [(     null? x) x] ;; Done
      [(   lambda? x) (mk-lambda (cadr x) (caddr x) (transform (cdddr x) known_value))]
      [(immediate? x) x] ;; Done
-     [( primcall? x) x]
+     [( primcall? x) (cons* (car x) (transform (cdr x) known_value))]
      [( variable? x) (lookup-env-val x known_value)] ;; Done
      
      [(      let? x)
@@ -811,7 +812,7 @@
 	      (lambda (binding)
 		(let* ([lhs (lhs binding)]
 		       [rhs (rhs binding)]
-		       [bin 	(list lhs (transform (transform_e rhs) known_value))])
+		       [bin (list lhs (transform (transform_e rhs) known_value))])
 
 		  (when (immediate? rhs) (set! known_value (ptpair lhs rhs known_value)))
 
