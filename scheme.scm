@@ -361,15 +361,20 @@
    ( else (begin (emit-expr (car x) env) (emit-begin (cdr x) env)))))
 
 
-(define (emit-let-help b* new-env body e)
-  (cond ((null? b*) (emit-begin body new-env))
-	( else	 (let ((b (car b*)) (label (get-label)))
-		   (emit-expr (cadr b) e)
-		   (emit "%~a = load i64, i64* %tmp" label)
-		   (emit-let-help (cdr b*) (envput (car b) label #f 0 new-env) body e)
-		   ))))
+
 
 (define (emit-let bindings body env)
+
+  (define (emit-let-help b* new-env body e)
+    (cond ((null? b*) (begin (emit-begin body new-env)
+			     (emit "call void @gc_stack_pop(i64 ~a)" (length bindings))))
+	  ( else	 (let ((b (car b*)) (label (get-label)))
+			   (emit-expr (cadr b) e)
+			   (emit "%~a = load i64, i64* %tmp" label)
+			   (emit "call void @gc_stack_psh(i64 %~a)" label)
+			   (emit-let-help (cdr b*) (envput (car b) label #f 0 new-env) body e)
+			   ))))
+  
   (emit-let-help bindings env body env))
 
 
@@ -942,8 +947,8 @@
   (emit "declare void @hptr_vector_ref(i64, i64, i64*)#1")
   (emit "declare i64  @hptr_vector_mak(i64, i64)      #1")
   (emit "declare i64  @hptr_string_mak(i64, i64)      #1")
-  (emit "declare void @stack_pop()                    #1")
-  (emit "declare void @stack_psh(i64)                 #1")
+  (emit "declare void @gc_stack_pop(i64)              #1")
+  (emit "declare void @gc_stack_psh(i64)              #1")
   )
 
 ;; fixnum - last two bits 0, mask 11b

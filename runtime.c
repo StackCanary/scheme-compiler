@@ -14,13 +14,14 @@ long *sptr; // Pointer to Top of Shadow Stack
 long *root; // Pointer to Shadow Stack
 
 
-void stack_psh(long val)
+void gc_stack_psh(long val)
 {
     *sptr++ = val; 
 }
 
-void stack_pop()
+void gc_stack_pop(long cnt)
 {
+  while(cnt --> 0)
     sptr--;
 }
 
