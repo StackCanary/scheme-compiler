@@ -783,31 +783,55 @@
 ;; Apply (interpreter transform) transform_e to rhs of let bindings
 (define (transform_d expr)
   
-  (define (transform-let-bindings bindings)
+  (define (transform-let-bindings bindings known_value)
     (map
      (lambda (binding)
        (let ((lhs (lhs binding)) (rhs (rhs binding)))
-	 (list lhs (transform (transform_e rhs)))
+	 (list lhs (transform (transform_e rhs) known_value))
 	 )
        )
      
      bindings)
     )
 
-  (define (transform x)
+  (define (transform x known_value)
+
     (cond
      [(     null? x) x] ;; Done
-     [(   lambda? x) (mk-lambda (cadr x) (caddr x) (transform (cdddr x)))]
+     [(   lambda? x) (mk-lambda (cadr x) (caddr x) (transform (cdddr x) known_value))]
      [(immediate? x) x] ;; Done
      [( primcall? x) x]
-     [( variable? x) x] ;; Done
-     [(      let? x) (cons* 'let   (transform-let-bindings (bindings x)) (transform (body x)))] ;; Done
-     [(     let*? x) (cons* 'let*  (transform-let-bindings (bindings x)) (transform (body x)))] ;; Done
-     [(    begin? x) (cons* 'begin (transform (cdr x)))] ;; Done
-     [(     list? x) (map transform x)] ;; Done
+     [( variable? x) (lookup-env-val x known_value)] ;; Done
+     
+     [(      let? x)
+
+      (cons* 'let
+	     
+	     (map
+	      (lambda (binding)
+		(let* ([lhs (lhs binding)]
+		       [rhs (rhs binding)]
+		       [bin 	(list lhs (transform (transform_e rhs) known_value))])
+
+		  (when (immediate? rhs) (set! known_value (ptpair lhs rhs known_value)))
+
+		  bin
+		  )
+		)
+	      (bindings x))
+	     
+	     (transform (body x) known_value)
+	     )
+
+;;    (cons* 'let   (transform-let-bindings (bindings x) known_value) (transform (body x) known_value))
+      ] 
+     
+;;     [(     let*? x) (cons* 'let*  (transform-let-bindings (bindings x) known_value) (transform (body x) known_value))] ;; Done
+     [(    begin? x) (cons* 'begin (transform (cdr x)  known_value))] ;; Done
+     [(     list? x) (map (lambda (exp) (transform exp known_value)) x)] ;; Done
      [       else    x])) ;; Done
 
-  (transform expr)
+  (transform expr '())
 
   )
 
@@ -827,6 +851,8 @@
 ;; (key-> value is-free func-arg)
 
 (define (lookup x env) (cdr (assv x env)))
+
+(define (ptpair x y env) (cons (list x y) env))
 
 (define (envput x val free args env) (cons (list x val free args) env))
 
