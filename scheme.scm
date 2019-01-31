@@ -569,7 +569,6 @@
   (define labels '())
 
 
-
   (define (transform-let-bindings bindings)
 
     (map
@@ -712,8 +711,8 @@
      (if (car x) (all? (cdr x)) #f)
      )))
 
-;; Constant Propogation 
-(define (transform_d expr)
+;; The Interpreter
+(define (transform_e expr)
 
   (define (transform-primargs primargs)
     (map
@@ -754,12 +753,12 @@
 
        (let* ([primcall (car x)]
 	      [primargs (cdr x)]
-	      [transformed-primargs (transform-primargs primargs)]
+	      [transformed-primargs (transform-primargs primargs)] ;; Transform Children
 	      [all-immediates (all? (map immediate? transformed-primargs))])
 	 
 	 (if
 	  all-immediates
-	  (primcall-optimiser primcall transformed-primargs)
+	  (primcall-optimiser primcall transformed-primargs)      ;; Then Transform ourselves
 	  (cons primcall transformed-primargs)
 	  )
 	 
@@ -774,8 +773,41 @@
      [(     list? x) (map transform x)] ;; Done
      [       else    x])) ;; Done
 
+  
+  (transform expr)
+  )
+
+;; Constant Propogation
+;; Replace known variable values with their symbols
+;; Apply (interpreter transform) transform_e to rhs of let bindings
+(define (transform_d expr)
+  
+  (define (transform-let-bindings bindings)
+    (map
+     (lambda (binding)
+       (let ((lhs (lhs binding)) (rhs (rhs binding)))
+	 (list lhs (transform (transform_e rhs)))
+	 )
+       )
+     
+     bindings)
+    )
+
+  (define (transform x)
+    (cond
+     [(     null? x) x] ;; Done
+     [(   lambda? x) (mk-lambda (cadr x) (caddr x) (transform (cdddr x)))]
+     [(immediate? x) x] ;; Done
+     [( primcall? x) x]
+     [( variable? x) x] ;; Done
+     [(      let? x) (cons* 'let   (transform-let-bindings (bindings x)) (transform (body x)))] ;; Done
+     [(     let*? x) (cons* 'let*  (transform-let-bindings (bindings x)) (transform (body x)))] ;; Done
+     [(    begin? x) (cons* 'begin (transform (cdr x)))] ;; Done
+     [(     list? x) (map transform x)] ;; Done
+     [       else    x])) ;; Done
 
   (transform expr)
+
   )
 
 (define (emit-primcall expr env)
@@ -983,8 +1015,6 @@
     (emit "store i64 %~a, i64* %tmp"  label3)
     )
   )
-
-
 
 
 
