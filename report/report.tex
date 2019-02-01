@@ -745,7 +745,15 @@ The indirection allows each closure to observe the same version of the variable.
 
 \section{Optimiser}
 
-The compiler features a code transformation that constant propogates and interprets mathematical expression if the solution is known at compile time. 
+The compiler features two optimisers.
+
+\subsection{Constant Propogation}
+
+The compiler can propogate constants. This eliminates many loads and stores. 
+
+\subsection{Known Computations}
+
+Common mathematical expressions with constant values can be evaluated at compile time and the value can be emitted as opposed to code required to compute the value. 
 
 \begin{thebibliography}{5}
 

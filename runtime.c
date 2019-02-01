@@ -25,6 +25,63 @@ void gc_stack_pop(long cnt)
     sptr--;
 }
 
+
+void gc()
+{
+  long * p = root;
+  
+  while(p != sptr)
+  {
+      gc_mark(p); p++;
+  }
+}
+
+#define mark 0xFFFF00FF00000000
+
+void gc_mark(long *p)
+{
+
+    long at_p = *p;
+
+    if (is_point(at_p))
+    {
+
+	*p |= mark; // Mark Value at p
+
+
+	long tag_stripped = at_p & 7;
+	long * tag_stripped_p = (long*) tag_stripped;
+		
+	// Call gc_mark on children 
+	if (is_pair(at_p))
+	{
+	    gc_mark(tag_stripped_p);
+	    gc_mark(tag_stripped_p + 1);
+	}
+	
+	if(is_clsr(at_p))
+	{
+
+	}
+	   
+	if(is_vect(at_p))
+	{
+
+	}
+ 	
+	if(is_strn(at_p))
+	{
+
+	}
+	
+    }	
+}
+
+void gcsweep()
+{
+
+}
+
 long hptr_con(long a, long b)
 {
     // printf("Wrote %ld at %p", value , hptr);
@@ -81,12 +138,6 @@ long hptr_get_clsptr()
 {
     return cptr;
 }
-
-void gc(long *roots, long size)
-{
-  
-}
-
 
 long hptr_vector_mak(long size, long value)
 {
