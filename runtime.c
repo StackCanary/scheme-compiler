@@ -6,12 +6,27 @@
 #define HEAP_SIZE 1024
 #define STCK_SIZE 1024 * 1024
 
+#define is_fnum(retval) ((retval &  0x03) == 0   )
+#define is_char(retval) ((retval &  0xFF) == 0x0F)
+#define is_bool(retval) ((retval &  0x7F) == 0x1F)
+#define is_null(retval)  (retval == 0x2F)
+#define is_pair(retval) ((retval &  0x07) == 1   )
+#define is_clsr(retval) ((retval &  0x07) == 2   )
+#define is_vect(retval) ((retval &  0x07) == 5   )
+#define is_strn(retval) ((retval &  0x07) == 6   )
+
+#define is_value(retval) (is_fnum(retval) || is_char(retval) || is_bool(retval) || is_null(retval))
+#define is_point(retval) (is_pair(retval) || is_clsr(retval) || is_vect(retval) || is_strn(retval)) 
+
 extern long scheme_entry();
 
 long *hptr; // Pointer to Top of Heap
 long  cptr; // Pointer to Current Closure Context
 long *sptr; // Pointer to Top of Shadow Stack
 long *root; // Pointer to Shadow Stack
+
+
+void gc_mark(long *p);
 
 
 void gc_stack_psh(long val)
@@ -61,19 +76,28 @@ void gc_mark(long *p)
 	
 	if(is_clsr(at_p))
 	{
+	    long len = *tag_stripped_p / 4;
+	    long fcn = *tag_stripped_p + 1;
 
+	    for (int i = 0; i < len; i++)
+	    {
+		gc_mark(tag_stripped_p + i + 2);
+	    }
+	    
 	}
 	   
 	if(is_vect(at_p))
 	{
+	    long len = *tag_stripped_p / 4;
 
+	    for (int i = 0; i < len; i++)
+	    {
+		gc_mark(tag_stripped_p + i + 1);
+	    }
+	    
 	}
- 	
-	if(is_strn(at_p))
-	{
 
-	}
-	
+	// A string contains no pointers
     }	
 }
 
@@ -216,17 +240,7 @@ void free_protected_space(char* p, int size)
 
 
 
-#define is_fnum(retval) ((retval &  0x03) == 0   )
-#define is_char(retval) ((retval &  0xFF) == 0x0F)
-#define is_bool(retval) ((retval &  0x7F) == 0x1F)
-#define is_null(retval)  (retval == 0x2F)
-#define is_pair(retval) ((retval &  0x07) == 1   )
-#define is_clsr(retval) ((retval &  0x07) == 2   )
-#define is_vect(retval) ((retval &  0x07) == 5   )
-#define is_strn(retval) ((retval &  0x07) == 6   )
 
-#define is_value(retval) (is_fnum(retval) || is_char(retval) || is_bool(retval) || is_null(retval))
-#define is_point(retval) (is_pair(retval) || is_clsr(retval) || is_vect(retval) || is_strn(retval)) 
 
 void print_ptr(long ret);
 
