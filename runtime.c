@@ -20,12 +20,14 @@
 
 extern long scheme_entry();
 
+long *base; // Pointer to Base of Heap
 long *hptr; // Pointer to Top of Heap
 long  cptr; // Pointer to Current Closure Context
 long *sptr; // Pointer to Top of Shadow Stack
-long *root; // Pointer to Shadow Stack
+long *root; // Pointer to Base of Shadow Stack
 
 
+void gcsweep();
 void gc_mark(long *p);
 
 
@@ -49,9 +51,12 @@ void gc()
   {
       gc_mark(p); p++;
   }
+
+  gcsweep();
 }
 
 #define mark 0xFFFF00FF00000000
+#define mask 0xFFFFFFFF00000000
 
 void gc_mark(long *p)
 {
@@ -101,9 +106,21 @@ void gc_mark(long *p)
     }	
 }
 
+
+// Collect and Untag 
 void gcsweep()
 {
-
+    long *p = base;
+  
+    while(p != hptr)
+    {
+	if (*p & mask != mark) {
+	    printf("Address %p contains garbage", p);
+	} else {
+	    *p = *p & ~mask; // Strip mark
+	}
+	
+    }
 }
 
 long hptr_con(long a, long b)
@@ -329,6 +346,7 @@ int main()
     char * heap = alloc_protected_space(HEAP_SIZE);
     char * stck = alloc_protected_space(STCK_SIZE);
 
+    base = (long *) heap;
     hptr = (long *) heap;
     sptr = (long *) stck;
     root = (long *) stck;
