@@ -1,7 +1,7 @@
 all: program
 
 runtime.o: runtime.c
-	gcc -c runtime.c
+	gcc -c runtime.c -g
 
 program.ll: scheme.scm run.scm
 	echo "$(file)"

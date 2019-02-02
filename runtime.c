@@ -3,8 +3,10 @@
 #include <unistd.h>
 #include <sys/mman.h>
 
-#define HEAP_SIZE 1024
+#define HEAP_SIZE (1024 / 2)
 #define STCK_SIZE 1024 * 1024
+
+#define HEAP_SIZE_LONG (HEAP_SIZE / sizeof(long))
 
 #define is_fnum(retval) ((retval &  0x03) == 0   )
 #define is_char(retval) ((retval &  0xFF) == 0x0F)
@@ -29,6 +31,8 @@ long *root; // Pointer to Base of Shadow Stack
 
 void gcsweep();
 void gc_mark(long *p);
+void gc();
+void print_ptr(long ret);
 
 
 void gc_stack_psh(long val)
@@ -38,29 +42,40 @@ void gc_stack_psh(long val)
 
 void gc_stack_pop(long cnt)
 {
-  while(cnt --> 0)
-    sptr--;
+    while(cnt --> 0)
+	sptr--;
+}
+
+void show_memory()
+{
+    long *p = base;
+    
+    while(p != hptr)
+    {
+	printf("%p:%p\n", p, (long *) *p); p++;
+    }
 }
 
 
 void gc()
 {
-  long * p = root;
+    long * p = root;
   
-  while(p != sptr)
-  {
-      gc_mark(p); p++;
-  }
+    while(p != sptr)
+    {
+	gc_mark(p); p++;
+    }
 
-  gcsweep();
+    gcsweep();
+
+    
 }
 
-#define mark 0xFFFF00FF00000000
-#define mask 0xFFFFFFFF00000000
+#define mark 0x8000000000000000
+#define mask 0x8000000000000000
 
 void gc_mark(long *p)
 {
-
     long at_p = *p;
 
     if (is_point(at_p))
@@ -69,7 +84,7 @@ void gc_mark(long *p)
 	*p |= mark; // Mark Value at p
 
 
-	long tag_stripped = at_p & 7;
+	long tag_stripped = at_p & ~7;
 	long * tag_stripped_p = (long*) tag_stripped;
 		
 	// Call gc_mark on children 
@@ -114,11 +129,14 @@ void gcsweep()
   
     while(p != hptr)
     {
-	if (*p & mask != mark) {
-	    printf("Address %p contains garbage", p);
-	} else {
-	    *p = *p & ~mask; // Strip mark
+	if ((*p & mask) != mark)
+	{
+	    printf("Address %p contains garbage\n", p);
 	}
+
+	*p = *p & ~mask; // Strip mark
+
+	p++;
 	
     }
 }
@@ -138,6 +156,13 @@ long hptr_con(long a, long b)
 void hptr_inc(long a)
 {
     *hptr = a; hptr++;
+
+    if (hptr == base + HEAP_SIZE_LONG)
+    {
+	printf("Starting gc D:\n");
+	
+	gc();
+    }
 }
 
 long hptr_ptr(long tag)
@@ -256,11 +281,6 @@ void free_protected_space(char* p, int size)
 }
 
 
-
-
-
-void print_ptr(long ret);
-
 void show_pair(long ptr)
 {
     
@@ -269,25 +289,25 @@ void show_pair(long ptr)
     while(1)
     {
     
-    long car = hptr_car(ptr);
-    long cdr = hptr_cdr(ptr);
+	long car = hptr_car(ptr);
+	long cdr = hptr_cdr(ptr);
 
-    print_ptr(car); printf(" ");
+	print_ptr(car); printf(" ");
 
-    if (is_value(cdr))
-    {
-	if (!is_null(cdr))
+	if (is_value(cdr))
 	{
-	    printf(". "); print_ptr(cdr);
-	}
+	    if (!is_null(cdr))
+	    {
+		printf(". "); print_ptr(cdr);
+	    }
 	
-	break;
-    }
+	    break;
+	}
 
-    if (is_pair(cdr))
-    {
-	ptr = cdr;
-    }
+	if (is_pair(cdr))
+	{
+	    ptr = cdr;
+	}
 
     }
 
