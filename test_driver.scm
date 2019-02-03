@@ -96,6 +96,20 @@
 (display (test "(mul 3 4)" 12)) (newline)
 (display (test "(div 15 3)" 5)) (newline)
 (display (test "(div 84 2)" 42)) (newline)
+(display (test "(if #t 4 3)" 4)) (newline)
+(display (test "(if #f 4 3)" 3)) (newline)
+(display (test "(if (null? ()) 4 3)" 4)) (newline)
+(display (test "(if (null?  7) 4 3)" 3)) (newline)
+(display (test "(let ([x 3] [y 5]) (if (< x y) x y))" 3)) (newline)
+(display (test "(let ([x 3] [y 5]) (add x y))" 8)) (newline)
+(display (test "(pair? (cons 6 7))" #t)) (newline)
+(display (test "(car (cons 6 7))" 6)) (newline)
+(display (test "(cdr (cons 6 7))" 7)) (newline)
+(display (test "(car (car (cons (cons 3 4) 7)))" 3)) (newline)
+(display (test "(cdr (car (cons (cons 3 4) 7)))" 4)) (newline)
+
+
+(display (test "(labels ((f10 (code (x y) () (mul x y)))) (let ((f (closure f10))) (funcall f 3 4)))" 12)) (newline)
 
 
 (display
