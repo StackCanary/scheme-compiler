@@ -68,6 +68,7 @@
     ))
 
 (prep)
+
 (display (test "10" 10)) (newline)
 (display (test "20" 20)) (newline)
 (display (test "#t" #t)) (newline)
@@ -93,6 +94,9 @@
 (display (test "(fixnum->char 1040)"   #\A)) (newline)
 (display (test "(mul 9 5)" 45)) (newline)
 (display (test "(mul 3 4)" 12)) (newline)
+(display (test "(div 15 3)" 5)) (newline)
+(display (test "(div 84 2)" 42)) (newline)
+
 
 (display
  (test "(labels ((f0 (code () (x y) (add x y)))

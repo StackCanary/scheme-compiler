@@ -260,13 +260,14 @@
 
 (define (div-primcall-emitter env arg1 arg2)
   (let ((label1 (get-label)) (label2 (get-label))
-	(label3 (get-label)))
+	(label3 (get-label)) (label4 (get-label)))
     (emit-expr arg2 env)
     (emit "%~a = load i64, i64* %tmp" label1)
     (emit-expr arg1 env)
     (emit "%~a = load i64, i64* %tmp" label2)
     (emit "%~a = sdiv i64 %~a, %~a"    label3 label2 label1)
-    (emit "store i64 %~a, i64* %tmp"  label3)))
+    (emit "%~a = mul i64 %~a,   4"    label4 label3)
+    (emit "store i64 %~a, i64* %tmp"  label4)))
 
 (define (emit-label label)
   (emit "~a:" label))
