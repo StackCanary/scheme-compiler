@@ -36,9 +36,10 @@ The project is organised across many files.
  - Makefile         - A Makefile to drive compilation and tests. 
 \end{verbatim}
 
-% Talk about the runtime, the scheme_entry function and the emition of llvm and linking the object files
+% Talk about the runtime, the scheme_entry function and the emition of llvm and linking the object files.
 
 \subsection{Runtime}
+
 
 
 \section{Test Framework}
@@ -48,7 +49,6 @@ Due to the incremental nature of the project, the first task was to construct a 
 This allowed implementing a feature and immediately being able to verify the computation.
 
 % Explain how it works, e.g. makefile and new directory.
-
 
 
 \section{Immediate Values}
@@ -742,7 +742,6 @@ After code transformation.
 
 The indirection allows each closure to observe the same version of the variable.
 
-
 \section{Optimiser}
 
 The compiler features two optimisers.
@@ -757,7 +756,7 @@ Common mathematical expressions with constant values can be evaluated at compile
 
 \subsection{Garbage Collection}
 
-The compiler features a mark and sweep garbage collector. 
+The compiler features a mark and sweep garbage collector. As only a simple incremental memory allocator is used, no collection is actually performed. Instead, a list of garbage memory addresses is displayed. 
 
 \begin{thebibliography}{5}
 

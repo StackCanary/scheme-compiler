@@ -324,7 +324,7 @@ void show_vect(long ptr)
 
     for (int i = 0; i < len; i++)
     {
-	hptr_vector_ref(ptr, i, &tmp); print_ptr(tmp);
+	hptr_vector_ref(ptr, i * 4, &tmp); print_ptr(tmp);
 
 	if (i < len - 1)
 	    printf(" ");

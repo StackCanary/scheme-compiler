@@ -901,9 +901,11 @@
 ;; Compile program
 
 (define (compile-program expr)
-  (emit-prolog)
-  (if (labels? expr) (emit-labels expr) (emit-code "scheme_entry" '() '()  expr '()))
-  (emit-epilog)
+  (let ((expr (transform_b (transform_c expr))))
+      (emit-prolog)
+      (if (labels? expr) (emit-labels expr) (emit-code "scheme_entry" '() '()  expr '()))
+      (emit-epilog)
+   )
   )
 
 (define (emit-argspc count_a count_b)
