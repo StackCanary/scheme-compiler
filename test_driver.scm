@@ -84,6 +84,17 @@
     (newline)
     ))
 
+
+(define (test-optimisation expr expt)
+  (set! test-number (+ test-number 1))
+  (when (equal? (transform_e (transform_d expr)) expt) (set! passed (+ passed 1)))
+  (display (if (equal? (transform_e (transform_d expr)) expt)
+       (format #f "   ~aPassed~a [~a+~a] tests/~a.scm" G N G N test-number)
+       (format #f "   ~aFailed~a [~a-~a] tests/~a.scm" R N R N test-number)
+       ))
+  (newline)
+  )
+
 (prep)
 
 (newline)
@@ -278,6 +289,47 @@
     (funcall sum (funcall pro 3) (funcall pro 4))
    )" 25)
 
+
+
+;; Optimisation
+(test-optimisation '(let ((x 1)) x) 
+		   '(let () 1))
+
+;; Optimisation
+(test-optimisation '(let ((x 1) (y 2)) y) 
+		   '(let () 2))
+
+;; Optimisation
+(test-optimisation '(let ((x 1) (y 2)) (add x y)) 
+		   '(let () 3))
+
+;; Optimisation
+(test-optimisation '(let ((x 9) (y 5)) (sub x y)) 
+		   '(let () 4))
+
+;; Optimisation
+(test-optimisation '(let ((x 9) (y 5)) (mul x y)) 
+		   '(let () 45))
+
+;; Optimisation
+(test-optimisation '(let ((x 18) (y 3)) (div x y)) 
+		   '(let () 6))
+
+;; Optimisation
+(test-optimisation '(let ((x 18) (y (add 3 3))) (div x y)) 
+		   '(let () 3))
+
+;; Optimisation
+(test-optimisation '(let ((x (sub 9 5)) (y (add 3 3))) (mul x y)) 
+		   '(let () 24))
+
+;; Optimisation
+(test-optimisation '(let ((x (mul 9 5)) (y (sub 4 3))) (mul x y)) 
+		   '(let () 45))
+
+;; Optimisation
+(test-optimisation '(let ((x (mul 4 3)) (y (sub 4 3)) (z (add 5 3) )) (mul z (mul x y))) 
+		   '(let () 96))
 
 
 

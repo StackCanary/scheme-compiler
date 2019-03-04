@@ -101,6 +101,13 @@
 ;;  not,  boolean?,
 ;; and char?.
 
+;; Remove object from association list
+(define (del-assv object alist)
+  (if (assv object alist)
+      (delete (assv object alist) alist)
+      alist)
+  )
+
 (define (primcall? x) (and (pair? x) (primitive? (car x))))
 
 (define glb-label 10)
@@ -783,6 +790,9 @@
   (transform expr)
   )
 
+;; Optimisation Transformation
+(define (optimise x) (transform_e (transform_d x)))
+
 ;; TODO
 ;; Constant Propogation
 ;; Replace known variable values with their symbols
@@ -804,7 +814,16 @@
      bindings)
     )
 
+
+
   (define (transform x known_value)
+
+    (define (transform-let binding)
+      (let* ([_lhs_ (lhs binding)]
+	     [_rhs_ (rhs binding)]
+	     [bin (list _lhs_ (transform (transform_e _rhs_) known_value))])
+	(when (immediate? (rhs bin)) (set! known_value (ptpair _lhs_ (rhs bin) known_value))  ) 
+	bin))
 
     (cond
      [(     null? x) x] ;; Done
@@ -817,18 +836,17 @@
 
       (cons* 'let
 	     
-	     (map
-	      (lambda (binding)
-		(let* ([_lhs_ (lhs binding)]
-		       [_rhs_ (rhs binding)]
-		       [bin (list _lhs_ (transform (transform_e _rhs_) known_value))])
-		  
-		  (when (immediate? (rhs bin)) (set! known_value (ptpair _lhs_ (rhs bin) known_value)))
-		  
-		  bin
-		  )
-		)
-	      (bindings x))
+	     (let ((new-binding (map transform-let (bindings x))))
+
+	       ;; Strip known values
+	             (map
+		      (lambda (value)
+			(set! new-binding (del-assv (car value) new-binding))
+			)
+		      known_value)
+		     
+		     new-binding
+	       )
 
 	     (transform (body x) known_value)
 	     )
