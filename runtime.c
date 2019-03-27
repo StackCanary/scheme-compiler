@@ -8,6 +8,8 @@
 
 #define HEAP_SIZE_LONG (HEAP_SIZE / sizeof(long))
 
+#define GC_METRIC
+
 #define is_fnum(retval) ((retval &  0x03) == 0   )
 #define is_char(retval) ((retval &  0xFF) == 0x0F)
 #define is_bool(retval) ((retval &  0x7F) == 0x1F)
@@ -22,11 +24,20 @@
 
 extern long scheme_entry();
 
+
 long *base; // Pointer to Base of Heap
 long *hptr; // Pointer to Top of Heap
 long  cptr; // Pointer to Current Closure Context
 long *sptr; // Pointer to Top of Shadow Stack
 long *root; // Pointer to Base of Shadow Stack
+
+
+int marked_vect = 0;
+int marked_clsr = 0;
+int marked_pair = 0;
+int mem_collect = 0;
+
+int gc_triggered = 0;
 
 
 void gcsweep();
@@ -59,6 +70,8 @@ void show_memory()
 
 void gc()
 {
+    gc_triggered = 1;
+    
     long * p = root;
   
     while(p != sptr)
@@ -90,12 +103,16 @@ void gc_mark(long *p)
 	// Call gc_mark on children 
 	if (is_pair(at_p))
 	{
+	    marked_pair++;
+	    
 	    gc_mark(tag_stripped_p);
 	    gc_mark(tag_stripped_p + 1);
 	}
 	
 	if(is_clsr(at_p))
 	{
+	    marked_clsr++;
+	    
 	    long len = *tag_stripped_p / 4;
 	    long fcn = *tag_stripped_p + 1;
 
@@ -108,6 +125,8 @@ void gc_mark(long *p)
 	   
 	if(is_vect(at_p))
 	{
+	    marked_vect++;
+	    
 	    long len = *tag_stripped_p / 4;
 
 	    for (int i = 0; i < len; i++)
@@ -131,7 +150,7 @@ void gcsweep()
     {
 	if ((*p & mask) != mark)
 	{
-	    printf("Address %p contains garbage\n", p);
+	    mem_collect++;
 	}
 
 	*p = *p & ~mask; // Strip mark
@@ -157,12 +176,10 @@ void hptr_inc(long a)
 {
     *hptr = a; hptr++;
 
-    if (hptr == base + HEAP_SIZE_LONG)
-    {
-	printf("Starting gc D:\n");
-	
-	gc();
-    }
+    /* if (hptr == base + HEAP_SIZE_LONG) */
+    /* { */
+    /* 	gc(); */
+    /* } */
 }
 
 long hptr_ptr(long tag)
@@ -372,6 +389,14 @@ int main()
     root = (long *) stck;
 
     print_ptr(scheme_entry()); printf("\n");
+
+    if (gc_triggered)
+    {
+	printf("Marked Vect %d\n", marked_vect);
+	printf("Marked Clsr %d\n", marked_clsr);
+	printf("Marked Pair %d\n", marked_pair);
+	printf("Collected %d memory locations\n", mem_collect);
+    }
 
     free_protected_space(heap, HEAP_SIZE);
     free_protected_space(stck, STCK_SIZE);

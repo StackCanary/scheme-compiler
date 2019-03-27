@@ -1,28 +1,49 @@
 \documentclass{article}
 
-\title{SH Project - A Scheme Compiler}
-\date{14/01/2018}
-\author{150008859}
-
-\setlength{\parskip}{1em}
-\setlength{\parindent}{0em}
-
 \usepackage{listings}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{mathtools}
 \usepackage{graphicx}
 \usepackage{subfig}
 \usepackage{booktabs}
+\usepackage{authblk}
+
+\title{SH Project - A Scheme Compiler}
+\date{14/01/2018}
+\author{Asad Zaidi}
+\affil{University of St Andrews}
+
+\setlength{\parskip}{1em}
+\setlength{\parindent}{0em}
 
 \begin{document}
 \maketitle
-\newpage
+
+\section{Abstract}
+
+The aim of this SH Project was to implement a compiler for a subset of Scheme detailed in the paper ``An incremental approach to Compiler Construction'', in which the author briefly describes its components across 24 sections. The compiler is written in Scheme coupled with a runtime in C. Originally, the paper targets x86, but my project targets llvm IR instead. This allows me take a more modern approach as the paper is dated from 2006, to take advantage of many of the features that are bundled with llvm including its optimiser and it's ability to compile into many other architectures.
+
+\section{Declaration}
+
+I declare that the material submitted for assessment is my own work except where credit is explicitly given to others by citation or acknowledgement. This work was performed during the current academic year except where otherwise stated.
+
+The main text of this project report is 7,088 words long, including project specification and plan.
+
+In submitting this project report to the University of St Andrews, I give permission for it to be made available for use in accordance with the regulations of the University Library. I also give permission for the title and abstract to be published and for copies of the report to be made and supplied at cost to any bonafide library or research worker, and to be made available on the World Wide Web. I retain the copyright in this work.
 
 \section{Introduction}
 
-The aim of this SH Project was to implement a compiler for a subset of Scheme detailed in the paper ``An incremental approach to Compiler Construction'', in which the author briefly describes its components across 24 sections. The compiler is written in Scheme coupled with a runtime in C.
+Approaching compiler construction can be a daunting task. Ghuloum argues that too much emphasis is placed on ``individual passes of the compiler'', often losing focus on the bigger picture. A humerous example is supplied by Ghuloum in which Appel's book on compiler construction presents 11 chapters on the different stages, but only 6 pages on ``Putting it all together''.
 
-Originally, the paper targets x86, but my project targets llvm IR instead. This allows me take a more modern approach as the paper is dated from 2006, to take advantage of many of the features that are bundled with llvm including its optimiser and it's ability to compile into many other architectures. 
+I selected this paper as Ghuloum aimed to provide an alternative approach to compiler construction, an incremental one. Furthermore, Ghuloum aims to challenge students by engaging them in compiler elements which are often omitted such as lexical scoping, heap allocated objects and garbage collection by compiling Scheme.
+
+However, an issue with this paper is that is dated from 2006 and many students have attempted this already. The paper targets x86 assembly. My goal was to adopt a more modern approach towards compiler construction by targetting llvm instead while also documenting the process to highlight the differences between using x86 and llvm. Furthermore, my goal was to gain a deeper insight into compiler construction, investigate advanced memory management and optimisation techniques. Finally, my aim was to learn Scheme, a programming language I was unfamiliar with at the start. 
+
+\section{Objectives}
+
+I implemented a subset of Scheme's core forms, extended forms and a large collection of primitives in addition to the variety of elements required to construct them. In addition, I developed a sophisticated C runtime and a testing framework to compliment them. Furthermore, I extended the project by applying advanced memory management techniques including garbage collection and various optimisation techniques.
+
+However, I was unable to meet my final primary object of a fully self-hosting compiler as this goal was far too ambitious. The task required an infeasible quantity of time and effort. However, I found that by pursuing this goal at the beginning, I researched and accomplished tasks which I found to be impossible initially like the code transformations for lambdas and assignable variables.
 
 \section{Project Layout}
 
@@ -36,26 +57,75 @@ The project is organised across many files.
  - Makefile         - A Makefile to drive compilation and tests. 
 \end{verbatim}
 
-% Talk about the runtime, the scheme_entry function and the emition of llvm and linking the object files.
+\subsection{Usage}
 
-\subsection{Runtime}
+To run the tests:
 
+\begin{verbatim}
+make test
+\end{verbatim}
 
+To compile a new program by typing into a the shell:
+
+\begin{verbatim}
+make clean
+make
+\end{verbatim}
+
+To compile and run a specific file:
+
+\begin{verbatim}
+make clean
+make file=filename
+\end{verbatim}
+
+Running the previous commands generates a binary named ``program'' which can be run:
+
+\begin{verbatim}
+./program
+\end{verbatim}
+
+To cleanup:
+
+\begin{verbatim}
+make clean
+\end{verbatim}
+
+\section{Runtime}
+
+The compiler generates a file named ``program.ll'' which contains llvm code and contains an entry function named ``scheme\_entry''. The llvm static compiler is used to compile the llvm code into assembly for the current architecture and passed through a native assembler to produce the object file ``program.o''.
+
+The runtime is situated in ``runtime.c'' and is also compiled into object code to produce ``runtime.o''. The runtime calls the scheme\_entry function and unpacks the packed value that is returned by the entry function in order to display it. 
+
+These object files are linked together to produce the binary named ``program'' which can then be executed to run the compiled Scheme program.
+
+The runtime features a garbage collector which is discussed in further detail later featuring a simple incremental memory allocator, some helper functions which are called by the compiled binary and code to display immediate values such as pairs, vectors and numbers.
 
 \section{Test Framework}
 
-Due to the incremental nature of the project, the first task was to construct a test framework. This involved implement a procedure ``test'' which accepts a symbolic expression, compiles the s-expression into an executable binary and compares the result produced by the binary with the expected answer.
+The first element in Ghuloum's strategy for building an incremental Scheme compiler from scratch was to implement a testing framework. By implementing a testing framework, a feature can be developed and immediately tested to verify its operations. 
 
-This allowed implementing a feature and immediately being able to verify the computation.
+This task involved implementing a procedure called ``test'' which accepts a symbolic expression and compares it to an expected value and returns success or failure. The test framework was extended in order to deal with the code transformations used in code optimisations and in order to test for output of different types.
 
-% Explain how it works, e.g. makefile and new directory.
+The tests can be found in ``test\_driver.scm'' and can be run using ``make test''.
 
+\begin{figure}[!htb]
+  \caption{The testing framework}
+  \centering
+  \includegraphics[scale=0.5]{images/image1.png}
+\end{figure}
+
+The tests function by entering a new directory, copying the current makefile into it and writing the Scheme code to a file. The compiler is ran and the input is passed to the ``compile\_program'' procedure. The llvm generated by the compiler is written to a file which is passed to the llvm static compiler to generated assembly for the given architecture. This is assembled and linked to generate a binary.  The output generated by the binary is then compared with the expected output value printing a pass or fail message.
+
+Ghuloum's approach to starting the Scheme compiler by writing a testing framework was very insightful. Firstly, the testing framework allowed me to have confidence in the operations of my Scheme compiler. I was able to ensure that adding a new change to the compiler did not impact the operations of any of the previous features. Secondly, this allows me to take the incremental approach of writing a feature and testing it. Finally, the incremental nature of adding a features and tests allowed me remain organised and to be able to accurately evaluate which phase of the compiler construction I was in.
+
+The testing framework also allows me to evaluate my project. Currently, the testing framework features 68 tests with a 100\% pass rate . Tests are included for every major feature of the compiler with the exception of garbage collection, which is demonstrated in the report thus allowing me to have confidence in my Compiler.
 
 \section{Immediate Values}
 
 This section discusses the task of implementing immediate values which constitute of integers, characters, booleans and the empty list. It also gives an insight at the code emitted by the compiler. During the compilation process, immediates are packed into a ``value and tag form'' and returned.
 
-Table~\ref{tab:immediates} shows the masks, tags and sizes of the packed immediates. For example, the value 42 is shifted left twice to produce the packed value 168. 
+Table~\ref{tab:immediates} shows the masks, tags and sizes of the packed immediates. For example, the value 42 is shifted left twice to produce the packed value 168.
 
 \begin{table}[ht]
   \centering
@@ -89,13 +159,17 @@ The following example demonstrates how the immediate value ``42'' is compiled.
  }                                ..  */
 \end{verbatim}
 
-As there are no registers or an operand stack in llvm, a variable representing a memory location named ``tmp'' is designated as the return value holder similar to how the ``eax'' register holds the return address in the cdecl calling convention. The variable is allocated in the header. At the end of the program, the value stored in tmp is returned. In the runtime, the ``scheme\_entry'' function is called and displays the value returned. 
+As there are no registers or an operand stack in llvm, a variable representing a memory location named ``tmp'' is designated as the return value holder similar to how the ``eax'' register holds the return address in the cdecl calling convention. The variable is allocated in the header. At the end of the program, the value stored in tmp is returned. In the runtime, the ``scheme\_entry'' function is called and displays the value returned. An advantage of using llvm is not having to use a specific calling conventions, allocating registers and managing register cleanup in the context of caller save and callee save registers.
 
-To supplement the immediate values, the runtime was extended to display the immediate value returned by the program. 
+To supplement the immediate values, the runtime was extended to display the immediate value returned by the program. In order to display the immediate value, the type of the value is discerned by applying a mask and comparing the tag. The original value can be obtained once the type is known by bit shifting.
+
+Originally Ghuloum's approach to this assumes 32 bit sized registers and integers allowing for up to 30 bits of fixnums as his paper targets x86. In other implementations like MIT Scheme, fixnums are atleast 24 bits in size. However, this size was insufficient for me and it was necessary for me to increase word size in my compiler to 64 bits in order to store memory addresses of 64 bits in size which were not present During Ghuloum's time. Although integers are usually 32 bits in size in many implementations, memory addresses can be 32 or 64 bits depending on the architecture and storing memory addresses is necessary to return pointers to objects on the heap.
+
+This was trivially adjusted in llvm by switching the types from i32 to i64 in llvm.
 
 \section{Primitives}
 
-The compiler was then extended by adding unary primitives. Unary primitives are procedures which are natively defined in the environment and accept a single argument. Arguments are emitted first and the result stored in temporary variables. 
+The compiler was then extended by adding unary primitives. Unary primitives are procedures which are natively defined in the environment and accept a single argument. Arguments are emitted first and the result stored in temporary variables. The result is computed and the result is returned in tmp. The process of loading operands into temporary variables is commonly shared between every primitive. However, the final computation varies between primitives. For example, in the unary primitive add1, the computation involves incrementing by one.
 
 \begin{verbatim}
 >(add1 42)
@@ -113,7 +187,8 @@ The compiler was then extended by adding unary primitives. Unary primitives are 
  }
 \end{verbatim}
 
-These unary primitives can be combined to form some semblance of a program.
+These unary primitives can be combined to form some semblance of a program. In this example, two unary primitives are combined to increment and decrement the number 42 by 1. The result is 42 as expected. In x86 assembly, the code emitted resembles a stack machine. However in llvm, a new label must be generated for each temporary variable. This is trivially accomplished by incrementing a global variable everytime a new label is required.
+
 
 \begin{verbatim}
 >(add1 (sub1 42))
@@ -134,6 +209,11 @@ These unary primitives can be combined to form some semblance of a program.
  }
 \end{verbatim}
 
+% Highlight the differences between llvm and x86
+
+A comparison can be made between x86 and llvm. To emit the equivalent code in x86 would involve involve simply adjusting the value stored in the eax register by adding or subtracting it. Hence, implementing unary primitives in x86 would be much simpler in llvm. However, the advantage of using llvm is revealed when emitting code for a binary primitive. Emitting a binary primitive in x86 involves emitting the code for an operand. This is followed by copying the value from the eax register to the stack. The stack pointer must then be subtracted. The code for the second operand is emitted and finally the result of the primitive can be computed. On the otherhand, in llvm the results emitted by the operands are simply copied into temporary variables.
+
+% TODO Write about the many binary primitives
 
 \section{Let and the Local Variables}
 
@@ -183,27 +263,30 @@ ret i64 %ret                                  .. */
 
 \end{verbatim}
 
-The compiler was extended by an environment, a dictionary which maps symbols to llvm variable names ([x var10], [y, var11], ..). Ordinarily, if we had used x86, we would have had to construct stack frames, manage the stack pointer and map symbols to offsets from current frame pointer. Local variables in llvm are represented by llvm variables. Binding a variable emits the right hand side expression and stores the value into a variable.
+The compiler was extended by an environment, a dictionary which maps symbols to llvm variable names ([x var10], [y, var11], ..). Binding a variable in a let expression emits the right hand side expression and stores its value into a variable. This process is repeated for each variable and the dictionary is populated. 
+
+Ordinarily, if we had used x86, we would have had to construct stack frames, manage the stack pointer and map symbols to offsets from current frame pointer. This process is more tedious from a compiler writer's perspective. However, llvm easily supports local variables as they can be trivially represented using llvm variables.
 
 \begin{verbatim}
  store i64 4, i64* %tmp        /* Emit 1 */
  %var10 = load i64, i64* %tmp  /* Load into symbol x (var10) */  
 \end{verbatim}
 
- In the body of the expression, the environment is available. When a symbol is referenced, it's value is emitted.
+ After the binding's have been used to populate the environment, the environment is available in the body of the expression.  When a symbol is referenced, a load referencing the symbol's llvm variable is emitted. In x86, referencing a symbol would involve loading from an offset in memory so the procedure is trivial in both llvm and x86. However, in x86 a clean up is required at the end of the let expression. In x86, the let expression needs to construct a stack frame and allocates some memory on the stack to hold the values of the variables and this process must be reversed. 
  
 \begin{verbatim}
 store i64 %var11, i64* %tmp     /* Emit x (var11)     
 %var12 = load i64, i64* %tmp                   .. */
 \end{verbatim}
 
-Slightly more complex programs can be constructed in which we can store the result of an expression into symbols. 
+Slightly more complex programs can be constructed in which we can store the result of an expression into symbols. Ghuloum's technique for constructing an environment for variable bindings and emitting references as loads is a fairly common technique that is flexible in nature. The environment is populated recursively in nested let expressions and the technique works well from a compiler writer's perspective.
 
 \section{Let*}
 
-The let* primitive is identical to the let primitive, except the variable bindings can be referenced in consecutive bindings. The syntax is identical.
 
-The following example illustrates a use of the let* primitive. 
+Thet let* extended form was not mentioned in Ghuloum's paper. However, the let* extended form is a very useful extension to deal with a small obstacle that is present in ordinary let bindings. In an ordinary let binding, it is not possible to reference another variable present in the same set of variable bindings. To accomplish this with a let binding involves nesting multiple let expressions and this not particularly elegant.
+
+The syntax of the let* expression is identical to the let primitive, except the variables can be referenced in consecutive bindings without the usage of nesting. The following example illustrates the syntax of the let* expression.
 
 \begin{verbatim}
 
@@ -214,7 +297,7 @@ The following example illustrates a use of the let* primitive.
 
 \end{verbatim}
 
-The let* primitive can be code transformed into nested let primitives and are implemented as such. The following example shows the transformed version.
+The let* expression is implemented as a code transformation. The implementation involves rewriting the let* expression as a nested let expression. The code transformed version looks like the following example.
 
 \begin{verbatim}
 
@@ -225,15 +308,15 @@ The let* primitive can be code transformed into nested let primitives and are im
  
 \end{verbatim}
 
+Although this was not mentioned in Ghuloum's original paper, this experiment gives an insight into code transformations which will be more heavily involved later when implementing more complex elements of the compiler like lambdas and variable assignment.
+
 \section{Begin}
 
-Multiple s-expressions can be chained sequentially through use of the Begin primitive. The return value of the final expression is returned. 
+Originally, in Ghuloum's paper the begin expression is omitted. However, I believed that sequencing was a vital primitive to include. I could not imagine an implementation of Scheme in which you could sequence instructions. Implementation wise, the begin expression emits the code for each expression sequentially. Finally, the return value of the final expression is returned. The following example demonstrates the syntax of the begin expression.
 
 \begin{verbatim}
 
 (begin exp1 exp2 ...) 
-
-Implementation wise, the begin expression simply emits the code for each expression sequentially. 
 
 \end{verbatim}
 
@@ -292,13 +375,15 @@ define i64 @scheme_entry()
 \end{verbatim}
 \endgroup
 
-Unique labels are generated for the Consequent and Alternative branches. The conditional is compared with the packed value of true (159). This is followed by a branching instruction which jumps to the Consequent on equality or to the Alternative otherwise.
+Unique labels are generated for the Consequent and Alternative branches. The conditional is compared with the packed value of true (159). This is followed by a branching instruction which jumps to the Consequent on equality or to the Alternative otherwise. Implementing conditionals increases the variety of programs that can be written. Furthermore, they can be complimented with conditional operators and many of the other extended forms and primitives to write sophisticated programs hence making conditionals a suitable choice to implement by Ghuloum.
+
+Branching in llvm is more robust and configurable. In x86, a compare instruction is called which performs a subtraction and this is followed by a variety of branching instructions. In llvm the sequence of a compare followed by a branch is identical. However, the condition for branching, ``eq'', is present in the compare instruction. The branching instruction also requires a consequent and alternative branch. In x86, if the condition in the branching instruction is not met, the program counter simply continues to the next instruction. However, in llvm an alternative branch is required. From a compiler writer's perspective, this allows leaving the task of organising and arranging branches to the llvm static compiler.
 
 \section{Lambdas}
 
-Now that our program contains many useful primitives, the next task is to implement lambdas. In order to implement lambdas, I visited several external resources. One, which was a blog on the topic of Closure Conversion \cite{closure-conversion}.
+Now that our program contains many useful primitives, the next task is to implement lambdas. Compiling lambdas is sophisticated task and involves some complex elements. In this section I discuss the challenges involved in compiling lambdas and how they were solved. In order to implement lambdas, I visited several external resources. One, which was a blog on the topic of Closure Conversion \cite{closure-conversion}.
 
-Syntactically, a lambda is expressed as the following and describes anonymous functions. 
+The first challenging aspect is defined by what lambdas are. The syntax of a lambda is expressed in the following example and describes anonymous functions, a function that does not have a name. 
 
 \begin{verbatim}
 (lambda (formal args) body)
@@ -316,7 +401,7 @@ Syntactically, a lambda is expressed as the following and describes anonymous fu
 \caption{Primitives related to lambdas.} \label{tab:lambdas}
 \end{table}
 
-However, a lambda does not simply compile into a function pointer. This is because Scheme has lexical scoping. It is possible for an expression in the body of a lambda to contain a free variable. A free variable is one which is not defined in the formal arguments of the lambda expression. 
+However, a lambda does not simply compile into a function pointer. This is because Scheme has lexical scoping. It is possible for an expression in the body of a lambda to contain a free variable. A free variable is one which is not defined in the formal arguments of the lambda expression. A free variable can outlive the scope that it was defined in. Currently we have been using a model where the lifespan of variables exist solely within the scope of where it was defined, this particular model suits the stack machine like structure we are exploiting to implement local variables. However, this model is not suitable for the life span of free variables.
 
 \begin{verbatim}
 
@@ -328,11 +413,11 @@ The variable x is free in the body of the second lambda expression.
 
 \end{verbatim}
 
-Instead, a lambda compiles into a ``closure'' which is a datastructure that contains a pointer to a function and the values of its free variables.
-
+Instead, a lambda compiles into a ``closure'' which is a datastructure that contains a pointer to a function and the values of its free variables. During the construction of the closure, the variables that become free in the body of the lambda are present in the scope. The values of these variables is captured in the closure. A pointer to this closure is emitted. In order to call the closure, the function is extracted and a pointer to the free variables is passed to the function. The free variables are immutable at this point, but later become mutable when assignment is implemented. 
+ 
 \subsection{Code Transformation}
 
-In order to accomplish this, the lambda expression is transformed into an intermediate forms. Table~\ref{tab:lambda_intermediate} shows the intermediate forms. 
+In order to accomplish this task, the lambda expression is transformed into an intermediate form in order to identify the elements of the lambda expression. This is necessary as we need to extract the function component of the lambda which is lifted up and emitted as a function in llvm. In addition, the lambda is replaced by a closure which will contain a pointer to the function that was lifted up. Furthermore, the local variables and the free variables need to be identified as they are accessed in different manners.  Table~\ref{tab:lambda_intermediate} shows the intermediate forms. 
 
 \begin{table}[ht]
   \centering
@@ -351,7 +436,7 @@ In order to accomplish this, the lambda expression is transformed into an interm
 
 \subsection{Example}
 
-To demonstrate the code transformation, we shall compile a small example and explain the seperate elements.
+To demonstrate the code transformation, we shall compile a small example and explain the seperate elements. This following example features a lambda expression which accepts a single argument and returns a lambda which is capable of summing the two free variables x and y which are present in it's body. In order to keep this section as simple as possible, the act of calling the function is left until the next section.
 
 \begin{verbatim}
 (let ((x 5))
@@ -360,13 +445,13 @@ To demonstrate the code transformation, we shall compile a small example and exp
 
 \subsubsection{Transformation into Free Variables Analysed Form}
 
-After the process of free variable analysis (currently skipped), the free variables are lifted to the top. My compiler expects code in the free variable analysed form. 
+After the process of free variable analysis (currently skipped), the free variables are lifted to the top. My compiler expects code in the free variable analysed form. In this form, an extra parameter is added to store free variables. In this example, the outer lambda's parameter is populated by x and the inner lambda's paramter is populated by x and y. 
 
 \begin{verbatim}
 After Free Variable Analysis
 
 (let ((x 5))
-  (lambda (y) (lambda () (add x y))))
+  (lambda (y) (x) (lambda () (x y) (add x y))))
 \end{verbatim}
 
 \subsubsection{Closure Conversion Transformation}
@@ -379,13 +464,21 @@ After Free Variable Analysis
 (let ((x 5)) (closure f1 x)))
 \end{verbatim}
 
-In this final transformation, a top level Labels form is constructed. The lambda's are transformed to closure forms, assigned a name e.g. ``f0'' (referred to as a Lvar), a llvm function name ``fun10'' and its code is collected in the top level Labels construct recursively.
+In this final transformation, a top level Labels form is constructed. The lambda's are transformed to closure forms, assigned a name e.g. ``f0'' referred to as an lvar, a llvm function name ``fun10'' and its code is collected in the top level Labels construct recursively. The term lvar is used by Ghuloum similar to way in which the left hand identifier refers to the right hand expression in a variable binding.
+
+% TODO explain research involved in this process
 
 \subsubsection{Code form}
 
-The labels form is then emitted, each Code construct is emitted as a separate llvm function.
+\begin{verbatim}
+(code (formal vars) (free vars) body)
+\end{verbatim}
 
-The environment was updated to distinguish local variables and free variables. In the code body, formal function arguments are emitted in the same manner as local variables. However, free variables are stored as an offsets from the closure pointer in the environment.
+The code for the labels form is then emitted, each Code construct is emitted as a separate llvm function. Several differences between llvm and x86 can be highlighted here. In x86, a label must be emitted followed by the code of the function. The function must also be present in the text section of the binary. There is no notion of function arguments built into the language and the return type of the function is not captured as the return value is simply returned in the eax register. However, llvm function are similar to C functions. Each function declaration involves a return type, a list of typed function arguments and a function name. This is far more elegant and simplistic than its x86 counter part. In x86, extra care must be taken to use a particular calling convention, to be aware of caller save and callee save registers and several other elements including constructing stack frames and saving and restoring frame pointers which can be tedious from a compiler writer's perspective. 
+
+The next challenge involves emitting local and free variables. In order to distinguish between local variables and free variables, the environment was updated. In the code expression's body, formal function arguments are emitted in the same manner as local variables. That is by emitting a load from a local llvm variable which stores the value of the function argument. However, free variables are stored as an offsets from the closure pointer in the environment. In order to access these, the runtime was updated with a function to retrieve an entry from the global closure pointer given an offset.
+
+The following example is the code emitted for the function labelled ``f1''. 
 
 \begingroup
     \fontsize{8pt}{5pt}\selectfont
@@ -431,7 +524,9 @@ define i64 @scheme_entry()
 % Another example is required for function calls
 % Saving Closure Pointer Restoring, Passing Arguments
 
-The closure being called has a function pointer element and holds the values of the free variables as well. In order to call a function, the previous closure pointer is saved and the closure pointer is set to the function being called. The function pointer is extracted. It is stored as a number and first requires a cast to a function pointer. A call to the function pointer is issued. After the function call, the saved closure pointer is restored.
+To call a closure the funcall primitive is used. The closure being called has a function pointer element and holds the values of the free variables as well. In order to call a function, the previous value of the global closure pointer is saved and the global closure pointer is set to the function being called. The function pointer is extracted. It is stored as a number and first requires a cast to a function pointer. A call to the function pointer is issued. After the function call, the saved closure pointer is restored. The function can access free variables as offsets from the closure pointer and local variables as references to llvm variables.
+
+In the cdecl calling convention used by Ghuloum, arguments need to be pushed onto the stack and then a call to the function is issued. This means that issuing function calls in x86 is much simpler. As the function pointer needs to be extracted from the closure, calling the function in llvm is a littler tricker. First the function pointer which is stored as a long needs to be casted back into a function pointer. In order to call the function, it's return type and the types of its arguments need to be specified both which are i64. On the contrary, the stronger type system alleviates the risk of many of the mistakes that can be made during the code emition stage. 
 
 \begin{verbatim}
 Input:
@@ -474,11 +569,12 @@ ret i64 %ret
 }
 \end{verbatim}
 
+
 \section{Datastructures and the Heap}
 
-Pairs, Vectors, Closures and Strings are datastructures that cannot be represented by a single fixed width number. Hence, the runtime was extended by adding a heap. A contigious region of memory is allocated to store runtime objects that cannot be represented by an immediate. 
+Pairs, Vectors, Closures and Strings are datastructures that cannot be represented by a single fixed width number. Hence, the runtime was extended by adding a heap. A contigious region of memory is allocated to store runtime objects that cannot be represented by an immediate. By implementing these datastructures, the programs that can be expressed in our implementation of Scheme increases and their quality can be more sophisticated. For example, combining pairs or vectors and closures allows many sorting algorithms can be implemented. Furthermore, the implementation of vectors allows us to implement assignable variables in the next section.
 
-The objects are constructed on the heap and a pointer to them is emitted. By aligning the allocated objects to a multiple of 8, the last 3 bits of a pointer can be used to store a tag, these can be found in Table~\ref{tab:datastructures}.
+In order to compile datastructures, the objects are constructed on the heap and a pointer to them is emitted. By aligning the allocated objects to a multiple of 8, the last 3 bits of a pointer can be used to store a tag, these can be found in Table~\ref{tab:datastructures}. To minimise the effort required to implement these, I extended the runtime with functions to construct these objects give sufficient arguments. The process in x86 and llvm would be similar as the code emitted by the compiler will simply call the helper functions in the runtime.
 
 \begin{table}[ht]
   \centering
@@ -497,9 +593,7 @@ The objects are constructed on the heap and a pointer to them is emitted. By ali
 
 \subsection{Pairs}
 
-The primitives required for the construction of pairs include ``pair?'', ``cons'', ``car'' and ``cdr''. A pair is a collection of two objects. If the 2nd item in a pair is a list, then the pair is referred to as a list.
-
-Pairs are constructed using the ``cons'' primitive which increases the heap pointer twice and copies the elements of the pair into the new cells which have been allocated. A list constructed using pairs is equivalent to a linked list. The ``car'' and ``cdr'' primitives return the first and second elements.
+The primitives required for the construction of pairs include ``pair?'', ``cons'', ``car'' and ``cdr''. A pair is a collection of two objects. If the 2nd item in a pair is a list, then the pair is referred to as a list. Pairs are constructed using the ``cons'' primitive which increases the heap pointer twice and copies the elements of the pair into the new cells which have been allocated. A list constructed using pairs is equivalent to a linked list. The ``car'' and ``cdr'' primitives return the first and second elements.
 
 \begin{table}[ht]
   \centering
@@ -607,7 +701,7 @@ ret i64 %ret
 
 \subsection{Vectors}
 
-The primitives required for the construction of pairs include ``vector?'', ``make-vector'', ``vector-ref'' and ``vector-set!''. 
+A vector is analogous to an array in C. It represents a fixed size array of memory which can be indexed and its elements can be mutated. Vectors can be used to represent assignable variables, this is because a vector represents an indirection of a single level. We can use this trick to use a vector of size 1 to represent an assignable variable that can outlive it's scope as it will be stored on the heap. The primitives for the construction of pairs include ``vector?'', ``make-vector'', ``vector-ref'' and ``vector-set!''.  
 
 \begin{table}[ht]
   \centering
@@ -645,7 +739,7 @@ The primitives required for the construction of pairs include ``vector?'', ``mak
 
 \subsection{Closures}
 
-A closure represents a closed lambda expression and is constructed during the closure conversion code transformation step. It is an Object that is also constructed on the heap. A closure stores the function pointer followed by the values of the free variables.
+A closure represents a closed lambda expression and is constructed during the closure conversion code transformation step. It is an Object that is also constructed on the heap. A closure stores the function pointer followed by the values of the free variables allowing the free variables to outlive the scope they were defined in.  
 
 \begin{verbatim}
 
@@ -659,7 +753,7 @@ A closure represents a closed lambda expression and is constructed during the cl
 
 \subsection{Strings}
 
-Strings are stored in the same manner as vectors, the string's length is stored. This is followed by the characters which are stored sequentially after. 
+Strings are stored in the same manner as vectors, the string's length is stored in the first slot. This is followed by the characters which are stored sequentially after. Strings in my implementation are limited in my implementation as they are not editable. However, this functionality is similar to similar to mutating elements in a vector and hence the implementation is simple.
 
 \begin{verbatim}
 >  (make-string 5 #\A)
@@ -676,8 +770,6 @@ Strings are stored in the same manner as vectors, the string's length is stored.
   .
 
 \end{verbatim}
-
-
 
 
 
@@ -699,7 +791,7 @@ Variables in scheme can be mutated by the use of the ``set!'' procedure.
 
 \subsection{Code Transformation}
 
-Assignment is implemented as a code transformation.
+Our implementation contains local variables, however they are immutable. In this section, we adjust our implementation by applying a code transformation and using a trick involving using vectors of size 1 to implement variable assignment. 
 
 The following example illustrates the challenges of assignment.
 
@@ -713,19 +805,15 @@ The following example illustrates the challenges of assignment.
 
 \end{verbatim}
 
-The example consists of an outer lambda ``f(c)'' which returns a Pair of lambdas.
+The example consists of an outer lambda ``f(c)'' which returns a Pair of lambdas. The former mutates c and the latter which returns c. The lambdas are executed in the following order. First, c is set to 0. It is then mutated to 12 and finally the value is returned. Comments in the example highlight the different stages.
 
-The former mutates c and the latter which returns c.
+The first challenge is that the variable C is a local variable, so it is ``stack allocated''. The scope of the variable is local to it's body and the variable will no longer exist outside of its scope. However, the variable can outlive the lambda it was declared in. Secondly, the value of c must be mutable such that its mutated value is visible to those who hold a reference to it.
 
-The lambdas are executed in the following order. First, c is set to 0. It is then mutated to 12 and finally the value is returned.
+These two challenges can be tackled through the use of a code transformation. It is important to note that variables are defined in a let or a lambda. The code tranformation works firstly by performing a depth first search to find the assignable variables. Assignable variables can be identified as they are enclosed by the ``set!'' procedure. A list of assignable variables is populated and this list is used in the next step. 
 
-The first challenge is that the variable C is a local variable, so it is ``stack allocated''. However, the variable can outlive the lambda it was declared in. Secondly, the value of c must be mutable such that its mutated value is visible to those who hold a reference to it.
+Once assignable variables are found, code transformation can be performed. The general idea by Ghuloum is to replace the body of a lambda or let where the assignable variable is defined by a let expression which copies the value of the variable into a vector of size 1. An alternate name for this code transformation is ``Boxing''. The code transformation involved was easier to implement having experienced it before while implementing lambdas. 
 
-These two challenges can be tackled through the use of a code transformation. It is important to note that variables are defined in a let or a lambda. The code tranformation works firstly by performing a depth first search to find the assignable variables, variables that have the ``set!'' procedure called on them.
-
-Once assignable variables are found, code transformation can be performed. The general idea is to replace the body of a lambda or let where the assignable variable is defined by a let which copies the value of the variable into a vector of size 1. An alternate name for this transformation is ``Boxing''.
-
-Any references made to that variable are done through the vector version of the variable. Assignment via \textbf{set!} is replaced by \textbf{vector-set!}. Variable access is replaced by \textbf{vector-ref}.
+Any references made to that variable are done through the vector version of the variable. Assignment via \textbf{set!} is replaced by \textbf{vector-set!}. Variable access is replaced by the usage of \textbf{vector-ref}. The usage of the vector accomplishes our task of letting the variable's life span exist outside of its scope. The indirection allows each closure to observe the same version of the variable, changes made to the variable are shared to its observers.
 
 \begin{verbatim}
 
@@ -740,23 +828,124 @@ After code transformation.
      ((cdr p))))
 \end{verbatim}
 
-The indirection allows each closure to observe the same version of the variable.
+To evaluate, Ghuloum's strategy for implementing variable assignment and the closure conversion compliment each other very well. A flaw of the closure conversion technique is that it copies the values of variables, this means the value of the variable is not shared between copies of the closure. However, this flaw is corrected by using the assignment technique in which a vector of size 1 is used to add one layer of indirection, the vector representing the variable points to the same location in memory thus allowing the variable to be shared. Hence, by using a suitable complimentary technique, this flaw is amended.
 
 \section{Optimiser}
 
-The compiler features two optimisers.
+The compiler features two optimisers, a constant propogator. The propogator is coupled with an interpreter which evaluates mathematical expressions at compile time. The aim of the optimizer is to minimise computation performed at runtime in order to increase performance and perhaps reduce the size of the emitted code to optimise for storage. The optimisations used are trivial, but impactful.
 
 \subsection{Constant Propogation}
 
-The compiler can propogate constants. This eliminates many loads and stores.
+The first optimisation is constant propogation. The aim of this optimisation is to eliminate many loads and stores during run time. Without this optimisation, a known value will be repeatedly fetched from memory incurring a small time penalty from loading from cache or memory repeatedly. Time is saved by using the value directly in the computation. This optimisation is implemented as a code transformation and is illustrated in the following example.
 
-\subsection{Known Computations}
+In this example, the computation produced by the addition is a constant and it stored in the variable x. Everytime the variable x is referenced, a load from memory is issued during runtime, this is not efficient.
 
-Common mathematical expressions with constant values can be evaluated at compile time and the value can be emitted as opposed to code required to compute the value.
+\begin{verbatim}
+(let ([x (add 1 2)] [y 3]) (add x y))
+\end{verbatim}
 
-\subsection{Garbage Collection}
+The first step involves applying the interpretive evaluator to compute the value of the addition in the let bindings. This allows constants to be located even if they are not explicit and need to be computed. Otherwise, the compiler would be limited to explicit constants limiting the optimisations that could be performed. 
 
-The compiler features a mark and sweep garbage collector. As only a simple incremental memory allocator is used, no collection is actually performed. Instead, a list of garbage memory addresses is displayed. 
+\begin{verbatim}
+(let ([x 3] [y 3]) (add x y))
+\end{verbatim}
+
+Once the constants have been identified, they need to be propogated into the body of the let expression. This is implemented as a search which populates a dictionary mapping variables to constants. Once the dictionary is populated, the variables in the dictionary are omitted from the variable bindings as the store into an llvm variable is no longer needed. Finally, symbols in the body are replaced by their values in the dictionary demonstrated in the next example. This allows the compiler to simply emit it's value during compile time, for example the value 6 is emitted for our example.
+
+\begin{verbatim}
+(let () 6)
+\end{verbatim}
+
+This final results in optimising away several loads and stores as the compiler simply emits the code for the immediate 6 as opposed to fetching a symbol's value from memory.
+
+\subsection{Compile time evaluation}
+
+Common mathematical expressions with constant values can be evaluated at compile time and the value can be emitted as opposed to code required to compute the value. The code transformation is recursive. If a mathematical expression is encountered and its arguments are constants, it is replaced by its value.
+
+\begin{verbatim}
+(let () (add 4 3))
+(let () (mul 4 3))
+(let () (div 4 3))
+(let () (sub 4 3))
+\end{verbatim}
+
+The compiler simply interprets these computations during compile time. The  interperter is currently able to perform this for multiplication, addition, division and subtraction. Perhaps the scope of this can improved by allowing a similar transformation for conditional expressions which can also be computed at compile time. The following example demonstrates the transformation in which the mathematical expression is replaced by its value.
+
+\begin{verbatim}
+(let () 7)
+(let () 12)
+(let () 1)
+(let () 1)
+\end{verbatim}
+
+\section{Garbage Collection}
+
+The collector uses the mark and sweep algorithm.
+
+A shadow stack is created on which local variables in the let bindings are pushed onto. At the end of the scope, the variables are popped from the stack. Pointers on this stack represent the roots of the run time objects. In the following example, code is emitted to push var1 and var2 onto the shadow stack, followed by executing the body and finally popping var1 and var2 from the shadow stack. The term shadow stack is used because it's a technique made available by llvm for garbage collection. However, it is not possible for me to use this technique unless I develop my compiler using llvm's tooling and libraries as opposed to emitting llvm IR manually like I have. So, I have manually implemented a similar technique in my C runtime and named it after llvm's equivalent. 
+
+\begin{verbatim}
+(let ([var1 expr1] [var2 expr]) body)
+\end{verbatim}
+
+A depth first search is initiated starting from the roots following children nodes. Nodes are marked as they are visited by marking them with a bit pattern. I exploited the fact that pointers are 48 bits in size allowing the remaining 16 bits to be used for tagging. During the sweeping phase, the heap is examined and all non-marked objects are ``collected'' as they are no longer reachable.
+
+As a sophisticated memory allocator is not present, it is not possible to reclaim memory addresses that have been collected. A further extension to the project would be to write a sophisticated memory allocator which is capable of reclaiming memory addresses. As of now, the collector simply lists the memory addresses that need to be reclaimed for testing purposes.
+
+\subsection{Testing Garbage Collection}
+
+In order to test garbage collection, a new primitive was added and the runtime was updated to collect gc metrics. The metrics collected highlight the count of marked objects in memory and collected memory locations giving an insight to what the collector accomplished during a run and how it performed. This is coupled with the fact that we can trigger garbage collection manually thus allowing us to verify the functionality of our collector.
+
+\begin{table}[ht]
+  \centering
+\begin{tabular}{ l l }
+  \toprule
+  Primcall & Description \\ \hline
+  \midrule
+  (gc) & Executes the garbage collector manually. \\
+  \bottomrule
+\end{tabular}
+\caption{Primitives related to gc.} \label{tab:gc}
+\end{table}
+
+In this first example gc is executed before the first let expression completes, the marking portion of the collector marks 1 vector and 28 pairs which are still reachable. This is because the vector ``a'' has been pushed onto the shadow stack and the pairs present inside of it are reachable. As these objects are marked, they are not collected. This means our collector does not collect objects which are currently live and in scope and currently on shadow stack which is the expected behavior.
+
+\begin{verbatim}
+(begin 
+ (let ([a (make-vector 10 (cons 1 2))]) a (gc))
+)
+
+Marked Vect 1
+Marked Clsr 0
+Marked Pair 10
+Collected 3 memory locations
+\end{verbatim}
+
+In this final example, gc is executed after the first let expression completes and collects all of the garbage memory locations. After the let expression is executed all of its local variables go out of scope, the vector is popped from the shadow stack. During the marking phase of the compiler, as the vector is no longer on the shadow stack, the vector and the pairs are not marked. During the sweeping phase, all unmarked memory addresses are ``collected''. The metrics show that all of the allocated memory was ``collected'' which is the expected behaviour.
+
+\begin{verbatim}
+(begin 
+ (let ([a (make-vector 10 (cons 1 2))]) a)
+ (gc)
+)
+
+Marked Vect 0
+Marked Clsr 0
+Marked Pair 0
+Collected 13 memory locations
+\end{verbatim}
+
+\section{Conclusion}
+
+To conclude, I incrementally implemented and thoroughly tested a compiler for a subset of Scheme guided by Ghuloum's paper on compiler construction. It consists of several interesting elements, featuring a subset of Scheme's core forms, extended forms and many primitives.
+
+In doing so I furthered my insight into compiler construction, learnt Scheme and managed to tackle a lot of challenges which I felt were impossible initially. In particular, translating a lexically scoped language with closures into a lower level language like llvm, dealing with heap allocated objects and the code transformations involved in variable assignment.
+
+Furthermore, I documented the process of using llvm. By adopting a more modern approach on a paper from 2006, I discovered and utilised alternative techniques that do not require book keeping memory locations and registers, bizarre calling conventions and allows my compiler to emit code that can be run on various architectures.
+
+Finally, I extended my project by investigating advanced memory management techniques and optimisation techniques, this led to the addition of mark and sweep garbage collection and optimisation techniques such as constant propogation and compile time evaluation.
+
+The extensions to a compiler until it's completion are numerous and allow for a huge scope. Suggested extensions in the original paper include a full numeric tower, user-defined macros, a module system, transforming into continuation passing style and tail call optimisation. 
 
 \begin{thebibliography}{5}
 

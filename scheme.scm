@@ -44,6 +44,7 @@
 	 [(vector-set!)  #t]
 	 [(vector-ref)   #t]
 	 [(make-string)  #t]
+	 [(gc)            #t]
 	 [ else          #f])))
 
 (define (is-labelled? expr tag) (and (pair? expr) (eqv? (car expr) tag)))
@@ -96,6 +97,7 @@
     [(vector-set!)  vector-set-primcall-emitter]
     [(vector-ref)   vector-ref-primcall-emitter]
     [(make-string)  make-string-primcall-emitter]
+    [(gc)           gc-primcall-emitter]
     ))
 
 ;;  not,  boolean?,
@@ -396,7 +398,7 @@
 		)))
    ))
 
-;; TODO Implement Lambdas
+
 
 
 					; Emit label expression (label ([lvar code] ..) expr)
@@ -552,13 +554,12 @@
     (emit "store i64 %~a, i64* %tmp" label1)         ;; 
     ))
 
-;; TODO
+
 ;; Given a lambda return the free variables
 (define (free-vars expr)
   '())
 
 ;; Annotate lambdas with their free variables
-;; TODO
 (define (transform_a expr)
   (cond
    [(  null? expr) expr]
@@ -611,13 +612,13 @@
 		       (mk-clos lvar fvr) ;; Change Lambda to Closure
 		       
 		       )
-      ] ;; TODO (cadr) - var, (caddr) - fvr, (cdddr) - body
+      ] ;; (cadr) - var, (caddr) - fvr, (cdddr) - body
      [(immediate? x) x]
      [( primcall? x) (cons* (car x) (transform (cdr x)))] 
      [( variable? x) x]
-     [(      let? x) (cons* 'let   (transform-let-bindings (bindings x)) (transform (body x)))] ;; TODO tranform bindings
-     [(     let*? x) (cons* 'let*  (transform-let-bindings (bindings x)) (transform (body x)))] ;; TODO transform bindings
-     [(    begin? x) (cons* 'begin (transform (cdr x)))] ;; TODO (cdr x)
+     [(      let? x) (cons* 'let   (transform-let-bindings (bindings x)) (transform (body x)))] ;; 
+     [(     let*? x) (cons* 'let*  (transform-let-bindings (bindings x)) (transform (body x)))] ;; 
+     [(    begin? x) (cons* 'begin (transform (cdr x)))] 
      [(     list? x) (map transform x)]
      [       else    (error "Unimplemented transformation in transform_b")]))
 
@@ -634,22 +635,18 @@
   (cons* 'lambda var fvr body)
   )
 
-;; TODO Variable Transformation
 ;; Citation https://github.com/namin/inc/
 (define (transform_c expr)
 
   (define assignable '())
 
-  ;; TODO Double Check
   (define (assignable? variable)
     (member variable assignable))
 
-  ;; TODO Double Check
   (define (make-assignable variable)
     (unless (assignable? variable)
       (set! assignable (cons variable assignable))))
 
-  ;; TODO Double Check  
   (define (find-assignable expr)
     (when (set? expr)
       (make-assignable (cadr expr))
@@ -662,7 +659,6 @@
     (cons* 'let   bindings body)
     )
 
-  ;; TODO Double Check  
   (define (transform expr)
     (cond
      [(   set? expr)
@@ -687,7 +683,7 @@
 	)
       ]
      
-     [(   let? expr) ;; TODO
+     [(   let? expr)
       (mk-let
        (map (lambda (binding)
               (let ([var (car binding)]
@@ -793,11 +789,10 @@
 ;; Optimisation Transformation
 (define (optimise x) (transform_e (transform_d x)))
 
-;; TODO
+
 ;; Constant Propogation
 ;; Replace known variable values with their symbols
 ;; Apply (interpreter transform) transform_e to rhs of let bindings
-;; TODO Remove binding from let instruction
 (define (transform_d expr)
 
   (define (not-immediate-bindings binding)
@@ -900,6 +895,7 @@
 	(emit "store i64 %~a, i64* %tmp" value)
 	)))
 
+
 ;; Emit Expression into a register
 (define (emit-expr x env)
   (cond
@@ -970,6 +966,7 @@
   (emit "declare i64  @hptr_string_mak(i64, i64)      #1")
   (emit "declare void @gc_stack_pop(i64)              #1")
   (emit "declare void @gc_stack_psh(i64)              #1")
+  (emit "declare void @gc()                           #1")
   )
 
 ;; fixnum - last two bits 0, mask 11b
@@ -987,6 +984,10 @@
 ;; 011 - Symbols
 ;; 101 - Vectors
 ;; 110 - Strings
+
+(define (gc-primcall-emitter env)
+  (emit "call void @gc()")
+  )
 
 
 ;; The aim right now is to implement the datastructures Pairs, Vectors and Strings
