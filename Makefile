@@ -33,8 +33,3 @@ mk_test_dir: Makefile run.scm runtime.c scheme.scm
 .PHONY: test
 test:
 	guile test_driver.scm -no-auto-compile
-
-
-
-
-	 

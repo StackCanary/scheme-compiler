@@ -148,12 +148,8 @@
 (test "(let ([x (cons 3 4)] [y (cons 5 6)]) (add (car x) (car y)))" 8)
 (test "(let ([x (cons 3 4)] [y (cons 5 6)]) (add (cdr x) (cdr y)))" 10)
 
-
-;; TODO Use Lambda Version
 ;; (display (test "(labels ((f10 (code (x y) () (mul x y)))) (let ((f (closure f10))) (funcall f 3 4)))" 12)) (newline)
 
-
-;; TODO Use Lambda Version
 ;; (display
 ;;  (test "(labels ((f0 (code () (x y) (add x y)))
 ;;                  (f1 (code (y) (x) (funcall (closure f0 x y) ))))
@@ -341,10 +337,3 @@
 
 
 (last)
-
-
-
-
-
-
-

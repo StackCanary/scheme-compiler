@@ -5,7 +5,7 @@
 
 (define (emit . args) (display (apply format #f args)) (newline))
 
-					; Binary Op -- TODO use logior, logiand
+					; Binary Op 
 
 (define shift-r bitwise-arithmetic-shift-right)
 (define shift-l bitwise-arithmetic-shift-left )
@@ -16,6 +16,7 @@
 (define (immediate? x)
   (or (integer? x) (char? x) (boolean? x) (null? x)))
 
+;; All of the primitives currently implemented.
 (define (primitive? x)
   (and (symbol? x)
        (case x
@@ -635,7 +636,7 @@
   (cons* 'lambda var fvr body)
   )
 
-;; Citation https://github.com/namin/inc/
+;; Variable transformation, inspired by https://github.com/namin/inc/
 (define (transform_c expr)
 
   (define assignable '())
@@ -913,7 +914,6 @@
   )
 
 ;; Compile program
-
 (define (compile-program expr)
   (let ((expr (transform_b (transform_c expr))))
       (emit-prolog)
@@ -1062,7 +1062,6 @@
   )
 
 ;; The String and its primitives string?, make-string
-
 (define (make-string-primcall-emitter env arg1 arg2)
   (let ((label1 (get-label)) (label2 (get-label)) (label3 (get-label)))
     (emit-expr arg1 env)
@@ -1073,21 +1072,3 @@
     (emit "store i64 %~a, i64* %tmp"  label3)
     )
   )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
